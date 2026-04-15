@@ -73,13 +73,36 @@ export default function LiquidationPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div
+        className="flex items-center justify-between gap-3 rounded border p-3"
+        style={{
+          borderColor: 'var(--accent-orange)',
+          backgroundColor: 'var(--card)',
+        }}
+      >
+        <div className="flex items-center gap-2">
+          <Trophy className="h-4 w-4" style={{ color: 'var(--accent-orange)' }} />
+          <div>
+            <div
+              className="text-[11px] font-bold uppercase tracking-[0.1em]"
+              style={{ color: 'var(--accent-orange)' }}
+            >
+              Liquidator Leaderboard
+            </div>
+            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+              Rank unique liquidators by gross profit and drill into each profile
+            </div>
+          </div>
+        </div>
         <Link
           href={`/${protocol}/liquidation/leaderboard`}
-          className="time-btn flex items-center gap-1.5"
+          className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-[0.1em] transition-opacity hover:opacity-80"
+          style={{
+            backgroundColor: 'var(--accent-orange)',
+            color: 'var(--background)',
+          }}
         >
-          <Trophy className="h-3 w-3" />
-          Liquidator Leaderboard
+          View Leaderboard →
         </Link>
       </div>
 
