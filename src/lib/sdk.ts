@@ -99,6 +99,14 @@ function toFloat(value: string, divisor: BigNumber): number {
   return new BigNumber(value).dividedBy(divisor).toNumber();
 }
 
+// NAVI's open API returns several "numeric" fields as strings (price,
+// liquidationFactor.threshold, boostedApr, …). Coerce at the boundary so
+// downstream callers can assume `number`.
+function num(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 /**
  * Convert NAVI's raw rate to APY percentage.
  *
@@ -138,8 +146,8 @@ export async function fetchAllPools(): Promise<NaviPoolData[]> {
 
     return json.data.map((pool) => {
       const symbol = pool.token.symbol;
-      const price = pool.oracle.price;
-      const decimals = pool.token.decimals;
+      const price = num(pool.oracle?.price);
+      const decimals = num(pool.token.decimals);
 
       // Match official SDK: divide raw amounts by 1e9, then multiply by index
       const rawSupply = toFloat(pool.totalSupply, SUPPLY_BORROW_SCALE);
@@ -183,11 +191,11 @@ export async function fetchAllPools(): Promise<NaviPoolData[]> {
         availableLiquidityUsd: availableLiquidity * price,
         supplyApy,
         borrowApy,
-        boostedSupplyApy: pool.supplyIncentiveApyInfo?.boostedApr ?? 0,
-        boostedBorrowApy: pool.borrowIncentiveApyInfo?.boostedApr ?? 0,
+        boostedSupplyApy: num(pool.supplyIncentiveApyInfo?.boostedApr),
+        boostedBorrowApy: num(pool.borrowIncentiveApyInfo?.boostedApr),
         utilization,
         ltv,
-        liquidationThreshold: pool.liquidationFactor?.threshold ?? 0,
+        liquidationThreshold: num(pool.liquidationFactor?.threshold),
         supplyCapCeiling,
         borrowCapCeiling,
         optimalUtilization,

@@ -24,32 +24,41 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// External APIs (NAVI open API, chain RPCs) routinely return numeric fields
+// as strings. Coerce before arithmetic/formatting so callers don't crash with
+// "value.toFixed is not a function" when upstream shape drifts.
+function toNum(v: unknown): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 /** Format to USD string: $1,234.56 */
-export function formatUsd(value: number, compact = false): string {
+export function formatUsd(value: number | string, compact = false): string {
+  const n = toNum(value);
   if (compact) {
-    if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(2)}B`;
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(2)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(2)}K`;
+    if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(2)}B`;
+    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(2)}M`;
+    if (n >= 1_000) return `$${(n / 1_000).toFixed(2)}K`;
   }
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(value);
+  }).format(n);
 }
 
 /** Format a number with commas: 1,234,567.89 */
-export function formatNumber(value: number, decimals = 2): string {
+export function formatNumber(value: number | string, decimals = 2): string {
   return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
-  }).format(value);
+  }).format(toNum(value));
 }
 
 /** Format percentage: 12.34% */
-export function formatPercent(value: number, decimals = 2): string {
-  return `${value.toFixed(decimals)}%`;
+export function formatPercent(value: number | string, decimals = 2): string {
+  return `${toNum(value).toFixed(decimals)}%`;
 }
 
 /** Format date to short string: Jan 15 */

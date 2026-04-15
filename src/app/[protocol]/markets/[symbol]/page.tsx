@@ -129,8 +129,8 @@ export default function MarketDetailPage({
         <TuiPanel title="Risk Parameters">
           <KvList
             rows={[
-              ['LTV', pool ? formatPercent(pool.ltv) : '—'],
-              ['Liquidation Threshold', pool ? formatPercent(pool.liquidationThreshold) : '—'],
+              ['LTV', pool ? formatPercent(pool.ltv * 100) : '—'],
+              ['Liquidation Threshold', pool ? formatPercent(pool.liquidationThreshold * 100) : '—'],
               ['Utilization', pool ? formatPercent(pool.utilization) : '—'],
               ['Supply Cap', pool ? formatNumber(pool.supplyCapCeiling) : '—'],
               ['Borrow Cap', pool ? formatNumber(pool.borrowCapCeiling) : '—'],
