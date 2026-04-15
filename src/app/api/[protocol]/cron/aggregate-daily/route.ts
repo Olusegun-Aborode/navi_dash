@@ -31,8 +31,21 @@ export async function GET(
   }
 
   try {
+    // Accept ?day=today | yesterday | YYYY-MM-DD. Default is yesterday,
+    // matching the nightly cron's contract. Useful for backfilling today's
+    // rollup on-demand without waiting 24h.
+    const { searchParams } = new URL(req.url);
+    const dayParam = searchParams.get('day') ?? 'yesterday';
+
     const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    if (dayParam === 'today') {
+      // keep today's date
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(dayParam)) {
+      const [y, m, d] = dayParam.split('-').map(Number);
+      yesterday.setFullYear(y, m - 1, d);
+    } else {
+      yesterday.setDate(yesterday.getDate() - 1);
+    }
     yesterday.setHours(0, 0, 0, 0);
     const endOfDay = new Date(yesterday);
     endOfDay.setHours(23, 59, 59, 999);
