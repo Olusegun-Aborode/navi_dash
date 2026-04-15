@@ -10,8 +10,18 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
-import type { TooltipProps } from 'recharts';
 import { formatUsd, formatDate, getAssetColor } from '@/lib/utils';
+
+interface TooltipEntry {
+  name?: string;
+  value?: number;
+  color?: string;
+}
+interface CompactTooltipProps {
+  active?: boolean;
+  payload?: TooltipEntry[];
+  label?: string | number;
+}
 
 interface StackedAreaChartProps {
   data: Array<Record<string, unknown>>;
@@ -21,7 +31,7 @@ interface StackedAreaChartProps {
 
 const TOP_N = 10;
 
-function CompactTooltip({ active, payload, label }: TooltipProps<number, string>) {
+function CompactTooltip({ active, payload, label }: CompactTooltipProps) {
   if (!active || !payload || payload.length === 0) return null;
   // Hide zero/undefined entries, sort descending, cap to TOP_N.
   const rows = payload
