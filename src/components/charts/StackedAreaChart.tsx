@@ -124,6 +124,26 @@ export default function StackedAreaChart({
     );
   }
 
+  // A stacked area chart with only one X value renders as a vertical column
+  // of dots (no "area" between two X positions to shade). Surface this to the
+  // user instead of leaving them staring at a confusing scatter plot.
+  if (data.length === 1) {
+    return (
+      <div
+        className="flex h-full flex-col items-center justify-center gap-2 text-center text-xs px-8"
+        style={{ color: 'var(--text-muted)' }}
+      >
+        <div>
+          Only 1 snapshot in this range — pick a wider window or wait for more daily rollups to
+          accumulate.
+        </div>
+        <div className="text-[10px]">
+          Latest: {formatDate(String(data[0].date))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ top: 8, right: 12, bottom: 8, left: 12 }}>
@@ -152,6 +172,7 @@ export default function StackedAreaChart({
             fill={getAssetColor(symbol)}
             fillOpacity={0.3}
             name={symbol}
+            connectNulls
           />
         ))}
       </AreaChart>
