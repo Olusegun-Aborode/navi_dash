@@ -41,15 +41,31 @@ export async function GET(
       totalBorrowUsd: number;
     }>();
 
-    for (const wallet of wallets) {
-      let collateralAssets: string[];
-      let borrowAssets: string[];
+    // Older wallet rows stored `collateralAssets` / `borrowAssets` as rich
+    // objects `{symbol, amount, valueUsd}`; newer rows store bare symbol
+    // strings. Normalize both to a deduped `string[]` of symbols.
+    const parseSymbols = (json: string): string[] => {
       try {
-        collateralAssets = JSON.parse(wallet.collateralAssets);
-        borrowAssets = JSON.parse(wallet.borrowAssets);
+        const parsed = JSON.parse(json);
+        if (!Array.isArray(parsed)) return [];
+        const syms = parsed
+          .map((entry) => {
+            if (typeof entry === 'string') return entry;
+            if (entry && typeof entry === 'object' && 'symbol' in entry)
+              return String((entry as { symbol: unknown }).symbol);
+            return null;
+          })
+          .filter((s): s is string => typeof s === 'string' && s.length > 0);
+        return Array.from(new Set(syms));
       } catch {
-        continue;
+        return [];
       }
+    };
+
+    for (const wallet of wallets) {
+      const collateralAssets = parseSymbols(wallet.collateralAssets);
+      const borrowAssets = parseSymbols(wallet.borrowAssets);
+      if (collateralAssets.length === 0 || borrowAssets.length === 0) continue;
 
       for (const coll of collateralAssets) {
         for (const borrow of borrowAssets) {

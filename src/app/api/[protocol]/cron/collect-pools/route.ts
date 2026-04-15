@@ -33,19 +33,26 @@ export async function GET(
       return NextResponse.json({ warning: 'No pool data returned' });
     }
 
+    // NAVI's open API occasionally returns numeric fields as strings
+    // (e.g. "price": "0.999788"). Prisma's Float columns reject strings,
+    // so coerce at the write boundary.
+    const num = (v: unknown) => {
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
     const snapshots = pools.map((pool) => ({
       protocol: slug,
       symbol: pool.symbol,
-      totalSupply: pool.totalSupply,
-      totalSupplyUsd: pool.totalSupplyUsd,
-      totalBorrows: pool.totalBorrows,
-      totalBorrowsUsd: pool.totalBorrowsUsd,
-      availableLiquidity: pool.availableLiquidity,
-      availableLiquidityUsd: pool.availableLiquidityUsd,
-      supplyApy: pool.supplyApy,
-      borrowApy: pool.borrowApy,
-      utilization: pool.utilization,
-      price: pool.price,
+      totalSupply: num(pool.totalSupply),
+      totalSupplyUsd: num(pool.totalSupplyUsd),
+      totalBorrows: num(pool.totalBorrows),
+      totalBorrowsUsd: num(pool.totalBorrowsUsd),
+      availableLiquidity: num(pool.availableLiquidity),
+      availableLiquidityUsd: num(pool.availableLiquidityUsd),
+      supplyApy: num(pool.supplyApy),
+      borrowApy: num(pool.borrowApy),
+      utilization: num(pool.utilization),
+      price: num(pool.price),
     }));
 
     await db.poolSnapshot.createMany({ data: snapshots });
