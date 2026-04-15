@@ -1,1 +1,7 @@
 @import "@datumlabs/dashboard-kit/theme";
+
+/* Tailwind v4 only scans files under the project root by default.
+   The kit's components ship as compiled JS in node_modules, so we have to
+   point Tailwind at them or utilities like `fixed inset-0 z-50` (used by
+   EmailGate's overlay) get tree-shaken away. */
+@source "../../node_modules/@datumlabs/dashboard-kit/dist/**/*.js";
