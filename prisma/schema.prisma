@@ -63,6 +63,12 @@ model LiquidationEvent {
   debtPrice         Float
   debtUsd           Float
   treasuryAmount    Float
+  // Gas paid by the liquidator for this tx. Populated by the
+  // `backfill-liquidation-gas` script and the `index-liquidations` cron;
+  // nullable because rows indexed before this column existed still need
+  // backfilling.
+  gasUsedMist       BigInt?
+  gasUsd            Float?
 
   @@index([protocol, timestamp])
   @@index([protocol, borrower])

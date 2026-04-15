@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+import { useParams } from 'next/navigation';
 import { formatUsd, formatNumber, formatDateFull, truncateAddress } from '@/lib/utils';
 
 export interface LiquidationRow {
@@ -25,6 +27,8 @@ interface LiquidationsTableProps {
 }
 
 export default function LiquidationsTable({ data, total, page, limit, onPageChange }: LiquidationsTableProps) {
+  const params = useParams<{ protocol: string }>();
+  const protocol = params?.protocol ?? 'navi';
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
   return (
@@ -57,7 +61,15 @@ export default function LiquidationsTable({ data, total, page, limit, onPageChan
                     {formatDateFull(row.timestamp)}
                   </td>
                   <td className="text-xs">{truncateAddress(row.borrower)}</td>
-                  <td className="text-xs">{truncateAddress(row.liquidator)}</td>
+                  <td className="text-xs">
+                    <Link
+                      href={`/${protocol}/liquidation/liquidator/${row.liquidator}`}
+                      className="hover:underline"
+                      style={{ color: 'var(--accent-orange)' }}
+                    >
+                      {truncateAddress(row.liquidator)}
+                    </Link>
+                  </td>
                   <td className="text-right">
                     {formatNumber(row.collateralAmount)} {row.collateralAsset}
                   </td>

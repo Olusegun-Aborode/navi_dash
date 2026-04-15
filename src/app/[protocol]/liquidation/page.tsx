@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+import { Trophy } from 'lucide-react';
 import { TuiPanel, ChartWrapper, LoadingState, ErrorState } from '@datumlabs/dashboard-kit';
 import FilterBar from '@/components/FilterBar';
 import LiquidationsTable, { type LiquidationRow } from '@/components/tables/LiquidationsTable';
@@ -71,6 +73,16 @@ export default function LiquidationPage() {
 
   return (
     <div className="space-y-4">
+      <div className="flex justify-end">
+        <Link
+          href={`/${protocol}/liquidation/leaderboard`}
+          className="time-btn flex items-center gap-1.5"
+        >
+          <Trophy className="h-3 w-3" />
+          Liquidator Leaderboard
+        </Link>
+      </div>
+
       <TuiPanel title="Filters" badge={`${symbols.length} ASSETS`} noPadding>
         <FilterBar filters={filters} onChange={handleFilterChange} fields={buildFilterFields(symbols)} />
       </TuiPanel>

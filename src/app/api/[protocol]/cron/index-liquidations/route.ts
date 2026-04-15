@@ -4,9 +4,58 @@ import { isValidProtocol } from '@/protocols/registry';
 import { NAVI_EVENT_TYPES } from '@/protocols/navi/config';
 import { getNaviPoolRegistry } from '@/protocols/navi/poolRegistry';
 import { parseLiquidationEvent } from '@/protocols/navi/events';
-import { queryEvents } from '@/lib/rpc';
+import { queryEvents, rpc } from '@/lib/rpc';
 import { getDb } from '@/lib/db';
 import BigNumber from 'bignumber.js';
+
+const MIST_PER_SUI = BigInt(1_000_000_000);
+
+interface TxBlockEffects {
+  effects?: {
+    gasUsed?: {
+      computationCost: string;
+      storageCost: string;
+      storageRebate: string;
+    };
+  };
+}
+
+async function fetchGasMist(digest: string): Promise<bigint | null> {
+  try {
+    const tx = await rpc<TxBlockEffects>('sui_getTransactionBlock', [
+      digest,
+      { showEffects: true },
+    ]);
+    const g = tx.effects?.gasUsed;
+    if (!g) return null;
+    return (
+      BigInt(g.computationCost ?? '0') +
+      BigInt(g.storageCost ?? '0') -
+      BigInt(g.storageRebate ?? '0')
+    );
+  } catch {
+    return null;
+  }
+}
+
+let cachedSuiPrice: { price: number; at: number } | null = null;
+async function getCurrentSuiPrice(): Promise<number> {
+  if (cachedSuiPrice && Date.now() - cachedSuiPrice.at < 5 * 60 * 1000) {
+    return cachedSuiPrice.price;
+  }
+  try {
+    const res = await fetch('https://open-api.naviprotocol.io/api/navi/pools');
+    const json = await res.json();
+    const sui = json.data.find(
+      (p: { token: { symbol: string } }) => p.token.symbol === 'SUI'
+    );
+    const price = Number(sui?.token?.price ?? 0) || 0;
+    cachedSuiPrice = { price, at: Date.now() };
+    return price;
+  } catch {
+    return 0;
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -104,6 +153,18 @@ export async function GET(
         const debtPrice        = new BigNumber(p.debt_price).dividedBy(dScale).toNumber();
         const treasuryAmount   = new BigNumber(p.treasury).dividedBy(cScale).toNumber();
 
+        // Enrich with gas. Failures are non-fatal — the row still gets indexed
+        // and the backfill script can fill the gap later.
+        const gasMist = await fetchGasMist(evt.id.txDigest);
+        let gasUsd: number | null = null;
+        if (gasMist !== null) {
+          const suiPrice = await getCurrentSuiPrice();
+          gasUsd =
+            suiPrice > 0
+              ? (Number(gasMist) / Number(MIST_PER_SUI)) * suiPrice
+              : 0;
+        }
+
         rows.push({
           id: eventId,
           protocol: slug,
@@ -120,6 +181,8 @@ export async function GET(
           debtPrice,
           debtUsd: debtAmount * debtPrice,
           treasuryAmount,
+          gasUsedMist: gasMist,
+          gasUsd,
         });
       }
 
