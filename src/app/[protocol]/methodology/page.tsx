@@ -176,7 +176,6 @@ export default function MethodologyPage() {
       <Section id="limitations" title="Known Limitations" badge="NOTES">
         <KV
           rows={[
-            ['Daily Refresh Only', 'Vercel Hobby tier limits crons to once per day. Data can be up to 24 hours stale'],
             ['Gas Coverage', 'The gasUsedMist and gasUsd columns were added after initial indexing. A backfill script populates older rows, but coverage may be below 100%'],
             ['Funding Source', 'Not yet implemented. Tracing inbound transfers to liquidator addresses requires a dedicated transfer indexer'],
             ['Cross-Protocol', 'Only NAVI is indexed. Scallop, Suilend, and other Sui lending protocols require separate event parsers'],
