@@ -8,6 +8,7 @@ import { TuiPanel, ChartWrapper, LoadingState, ErrorState } from '@datumlabs/das
 import SimpleLineChart from '@/components/charts/SimpleLineChart';
 import InterestRateCurve from '@/components/charts/InterestRateCurve';
 import DonutChart from '@/components/charts/DonutChart';
+import InfoTooltip from '@/components/InfoTooltip';
 import { formatUsd, formatPercent, formatNumber, getAssetColor } from '@/lib/utils';
 
 interface PoolDetail {
@@ -129,8 +130,8 @@ export default function MarketDetailPage({
         <TuiPanel title="Risk Parameters">
           <KvList
             rows={[
-              ['LTV', pool ? formatPercent(pool.ltv * 100) : '—'],
-              ['Liquidation Threshold', pool ? formatPercent(pool.liquidationThreshold * 100) : '—'],
+              ['LTV', pool ? formatPercent(pool.ltv * 100) : '—', 'Maximum borrow power per unit of collateral'],
+              ['Liquidation Threshold', pool ? formatPercent(pool.liquidationThreshold * 100) : '—', 'Health factor drops below 1 when borrows exceed this ratio of collateral'],
               ['Utilization', pool ? formatPercent(pool.utilization) : '—'],
               ['Supply Cap', pool ? formatNumber(pool.supplyCapCeiling) : '—'],
               ['Borrow Cap', pool ? formatNumber(pool.borrowCapCeiling) : '—'],
@@ -198,12 +199,15 @@ function Cell({ title, value, sub, last }: { title: string; value: string; sub?:
   );
 }
 
-function KvList({ rows }: { rows: Array<[string, string]> }) {
+function KvList({ rows }: { rows: Array<[string, string, string?]> }) {
   return (
     <div className="grid grid-cols-2 gap-y-2 text-xs">
-      {rows.map(([k, v]) => (
+      {rows.map(([k, v, tooltip]) => (
         <span key={k} className="contents">
-          <span style={{ color: 'var(--text-muted)' }}>{k}</span>
+          <span className="flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+            {k}
+            {tooltip && <InfoTooltip text={tooltip} />}
+          </span>
           <span className="text-right" style={{ color: 'var(--foreground)' }}>{v}</span>
         </span>
       ))}

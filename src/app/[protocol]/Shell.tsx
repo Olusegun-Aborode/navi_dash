@@ -18,6 +18,7 @@ export default function Shell({ protocol, protocolName, children }: ShellProps) 
     { href: `/${protocol}/markets`, label: 'Markets' },
     { href: `/${protocol}/liquidation`, label: 'Liquidation' },
     { href: `/${protocol}/wallets`, label: 'Wallets' },
+    { href: `/${protocol}/methodology`, label: 'Methodology' },
   ];
 
   return (

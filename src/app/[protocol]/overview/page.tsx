@@ -10,6 +10,7 @@ import {
   ErrorState,
 } from '@datumlabs/dashboard-kit';
 import StackedAreaChart from '@/components/charts/StackedAreaChart';
+import InfoTooltip from '@/components/InfoTooltip';
 import { formatUsd } from '@/lib/utils';
 
 interface PoolData {
@@ -75,10 +76,10 @@ export default function OverviewPage() {
     <div className="space-y-4">
       <TuiPanel title="Protocol Overview" badge="LIVE" noPadding>
         <div className="grid grid-cols-2 lg:grid-cols-4">
-          <MetricCardCell title="Total Supplied" value={formatUsd(t.totalSupplyUsd, true)} />
-          <MetricCardCell title="Total Borrowed" value={formatUsd(t.totalBorrowsUsd, true)} />
-          <MetricCardCell title="TVL" value={formatUsd(t.tvl, true)} />
-          <MetricCardCell title="Utilization" value={`${utilizationPct.toFixed(2)}%`} last />
+          <MetricCardCell title="Total Supplied" value={formatUsd(t.totalSupplyUsd, true)} tooltip="Sum of all deposited assets across pools, in USD" />
+          <MetricCardCell title="Total Borrowed" value={formatUsd(t.totalBorrowsUsd, true)} tooltip="Sum of all outstanding borrows across pools, in USD" />
+          <MetricCardCell title="TVL" value={formatUsd(t.tvl, true)} tooltip="Total Value Locked = Total Supplied − Total Borrowed" />
+          <MetricCardCell title="Utilization" value={`${utilizationPct.toFixed(2)}%`} last tooltip="Total Borrowed / Total Supplied as a percentage" />
         </div>
       </TuiPanel>
 
@@ -97,13 +98,16 @@ export default function OverviewPage() {
   );
 }
 
-function MetricCardCell({ title, value, last }: { title: string; value: string; last?: boolean }) {
+function MetricCardCell({ title, value, last, tooltip }: { title: string; value: string; last?: boolean; tooltip?: string }) {
   return (
     <div
       className={`p-4 lg:p-5 ${last ? '' : 'border-r'}`}
       style={{ borderColor: 'var(--border)' }}
     >
-      <div className="counter-label">{title}</div>
+      <div className="counter-label flex items-center gap-1">
+        {title}
+        {tooltip && <InfoTooltip text={tooltip} />}
+      </div>
       <div className="counter-value" style={{ color: 'var(--foreground)' }}>
         {value}
       </div>

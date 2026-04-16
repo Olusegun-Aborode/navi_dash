@@ -12,6 +12,7 @@ import {
 } from '@datumlabs/dashboard-kit';
 import SimpleBarChart from '@/components/charts/SimpleBarChart';
 import LiquidationsTable, { type LiquidationRow } from '@/components/tables/LiquidationsTable';
+import InfoTooltip from '@/components/InfoTooltip';
 import {
   formatUsd,
   formatNumber,
@@ -224,6 +225,7 @@ export default function LiquidatorProfilePage({
                 ? '—'
                 : formatPercent(gasEfficiency.gasToProfitRatio * 100)
             }
+            tooltip="Total gas spent / gross profit — lower is more efficient"
           />
           <Cell title="Net Profit" value={formatUsd(summary.netProfit, true)} last />
         </div>
@@ -273,19 +275,24 @@ function Cell({
   sub,
   last,
   valueColor,
+  tooltip,
 }: {
   title: string;
   value: string;
   sub?: string;
   last?: boolean;
   valueColor?: string;
+  tooltip?: string;
 }) {
   return (
     <div
       className={`p-4 lg:p-5 ${last ? '' : 'border-r'}`}
       style={{ borderColor: 'var(--border)' }}
     >
-      <div className="counter-label">{title}</div>
+      <div className="counter-label flex items-center gap-1">
+        {title}
+        {tooltip && <InfoTooltip text={tooltip} />}
+      </div>
       <div className="counter-value" style={{ color: valueColor ?? 'var(--foreground)' }}>
         {value}
       </div>

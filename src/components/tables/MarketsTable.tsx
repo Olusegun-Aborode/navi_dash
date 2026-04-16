@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { cn, formatUsd, formatNumber, formatPercent, getAssetColor } from '@/lib/utils';
 import { ChevronUp, ChevronDown } from 'lucide-react';
+import InfoTooltip from '@/components/InfoTooltip';
 
 export interface MarketRow {
   symbol: string;
@@ -47,14 +48,14 @@ export default function MarketsTable({ data, protocolSlug }: MarketsTableProps) 
   const SortIcon = ({ col }: { col: SortKey }) =>
     sortKey !== col ? null : sortAsc ? <ChevronUp className="inline h-3 w-3" /> : <ChevronDown className="inline h-3 w-3" />;
 
-  const columns: Array<{ key: SortKey; label: string; align?: 'right' }> = [
+  const columns: Array<{ key: SortKey; label: string; align?: 'right'; tooltip?: string }> = [
     { key: 'symbol', label: 'Market' },
     { key: 'totalSupplyUsd', label: 'Total Supply', align: 'right' },
     { key: 'totalBorrowsUsd', label: 'Total Borrows', align: 'right' },
     { key: 'availableLiquidityUsd', label: 'Liquidity', align: 'right' },
-    { key: 'supplyApy', label: 'Supply APY', align: 'right' },
-    { key: 'borrowApy', label: 'Borrow APY', align: 'right' },
-    { key: 'utilization', label: 'Utilization', align: 'right' },
+    { key: 'supplyApy', label: 'Supply APY', align: 'right', tooltip: 'Annualized yield earned by suppliers, from borrower interest' },
+    { key: 'borrowApy', label: 'Borrow APY', align: 'right', tooltip: 'Annualized cost paid by borrowers' },
+    { key: 'utilization', label: 'Utilization', align: 'right', tooltip: 'Borrowed / Supplied — higher means less available liquidity' },
   ];
 
   return (
@@ -68,7 +69,7 @@ export default function MarketsTable({ data, protocolSlug }: MarketsTableProps) 
                 className={cn('cursor-pointer transition-colors hover:text-white', col.align === 'right' && 'text-right')}
                 onClick={() => handleSort(col.key)}
               >
-                {col.label} <SortIcon col={col.key} />
+                {col.label} {col.tooltip && <InfoTooltip text={col.tooltip} />} <SortIcon col={col.key} />
               </th>
             ))}
           </tr>

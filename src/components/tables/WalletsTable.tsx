@@ -2,6 +2,7 @@
 
 import { formatUsd, truncateAddress, formatNumber, getAssetColor } from '@/lib/utils';
 import { healthFactorColor, healthFactorLabel } from '@/lib/constants';
+import InfoTooltip from '@/components/InfoTooltip';
 
 export interface WalletRow {
   address: string;
@@ -77,7 +78,7 @@ export default function WalletsTable({ data, total, page, limit, onPageChange }:
               <th>Assets</th>
               <th className="text-right">Borrows</th>
               <th>Assets</th>
-              <th className="text-right">Health Factor</th>
+              <th className="text-right">Health Factor <InfoTooltip text="Weighted collateral / total borrows — below 1.0 = liquidatable" /></th>
             </tr>
           </thead>
           <tbody>

@@ -6,6 +6,7 @@ import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { TuiPanel, LoadingState, ErrorState } from '@datumlabs/dashboard-kit';
+import InfoTooltip from '@/components/InfoTooltip';
 import { formatUsd, formatDateFull, truncateAddress } from '@/lib/utils';
 
 interface LeaderboardRow {
@@ -109,8 +110,8 @@ function LeaderboardTable({
               <th>#</th>
               <th>Liquidator</th>
               <th className="text-right">Liquidations</th>
-              <th className="text-right">Gross Profit</th>
-              <th className="text-right">Net Profit</th>
+              <th className="text-right">Gross Profit <InfoTooltip text="collateralUsd − debtUsd − treasury fee, summed across all events" /></th>
+              <th className="text-right">Net Profit <InfoTooltip text="Gross profit minus total gas spent in USD" /></th>
               <th className="text-right">Total Seized</th>
               <th className="text-right">Total Repaid</th>
               <th className="text-right">Treasury</th>
