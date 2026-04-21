@@ -5,7 +5,11 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { Trophy } from 'lucide-react';
-import { TuiPanel, ChartWrapper, LoadingState, ErrorState } from '@datumlabs/dashboard-kit';
+import Panel from '@/components/ui/Panel';
+import ChartPanel from '@/components/ui/ChartPanel';
+import PageHeader from '@/components/ui/PageHeader';
+import Loading from '@/components/ui/Loading';
+import ErrorMsg from '@/components/ui/ErrorMsg';
 import FilterBar from '@/components/FilterBar';
 import LiquidationsTable, { type LiquidationRow } from '@/components/tables/LiquidationsTable';
 import DonutChart from '@/components/charts/DonutChart';
@@ -72,62 +76,55 @@ export default function LiquidationPage() {
   }));
 
   return (
-    <div className="space-y-4">
-      <div
-        className="flex items-center justify-between gap-3 rounded border p-3"
-        style={{
-          borderColor: 'var(--accent-orange)',
-          backgroundColor: 'var(--card)',
-        }}
-      >
-        <div className="flex items-center gap-2">
-          <Trophy className="h-4 w-4" style={{ color: 'var(--accent-orange)' }} />
-          <div>
-            <div
-              className="text-[11px] font-bold uppercase tracking-[0.1em]"
-              style={{ color: 'var(--accent-orange)' }}
-            >
-              Liquidator Leaderboard
-            </div>
-            <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-              Rank unique liquidators by gross profit and drill into each profile
-            </div>
-          </div>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Liquidation Terminal"
+        subtitle="Every seized position, enriched with gas cost and net profit."
+        actions={
+          <Link
+            href={`/${protocol}/liquidation/leaderboard`}
+            className="dropdown-trigger"
+            style={{
+              background: 'var(--orange)',
+              borderColor: 'var(--orange)',
+              color: 'white',
+              fontWeight: 600,
+            }}
+          >
+            <Trophy size={12} />
+            Leaderboard →
+          </Link>
+        }
+      />
+
+      <Panel title="Filters" badge={`${symbols.length} ASSETS`} flush>
+        <div style={{ padding: 'var(--panel-pad)' }}>
+          <FilterBar
+            filters={filters}
+            onChange={handleFilterChange}
+            fields={buildFilterFields(symbols)}
+          />
         </div>
-        <Link
-          href={`/${protocol}/liquidation/leaderboard`}
-          className="rounded px-4 py-2 text-[11px] font-bold uppercase tracking-[0.1em] transition-opacity hover:opacity-80"
-          style={{
-            backgroundColor: 'var(--accent-orange)',
-            color: 'var(--background)',
-          }}
-        >
-          View Leaderboard →
-        </Link>
-      </div>
+      </Panel>
 
-      <TuiPanel title="Filters" badge={`${symbols.length} ASSETS`} noPadding>
-        <FilterBar filters={filters} onChange={handleFilterChange} fields={buildFilterFields(symbols)} />
-      </TuiPanel>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <ChartWrapper title="Collateral Seized Distribution" badge="30D">
+      <div className="grid grid-2">
+        <ChartPanel title="Collateral Seized Distribution" badge="30D">
           <DonutChart data={donutData} />
-        </ChartWrapper>
-        <ChartWrapper title="Daily Collateral Seized" badge="30D">
-          <SimpleBarChart data={barData} color="var(--accent-red)" />
-        </ChartWrapper>
+        </ChartPanel>
+        <ChartPanel title="Daily Collateral Seized" badge="30D">
+          <SimpleBarChart data={barData} color="var(--red)" />
+        </ChartPanel>
       </div>
 
-      <TuiPanel
+      <Panel
         title="Liquidation Events"
         badge={eventsQuery.data ? `${eventsQuery.data.total} TOTAL` : undefined}
-        noPadding
+        flush
       >
         {eventsQuery.isPending ? (
-          <LoadingState />
+          <Loading message="Loading events" />
         ) : eventsQuery.isError ? (
-          <ErrorState message="Failed to load events." onRetry={() => eventsQuery.refetch()} />
+          <ErrorMsg message="Failed to load events." onRetry={() => eventsQuery.refetch()} />
         ) : (
           <LiquidationsTable
             data={eventsQuery.data.events ?? []}
@@ -137,7 +134,7 @@ export default function LiquidationPage() {
             onPageChange={setPage}
           />
         )}
-      </TuiPanel>
+      </Panel>
     </div>
   );
 }

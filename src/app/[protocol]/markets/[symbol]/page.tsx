@@ -4,7 +4,12 @@ import { use } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { TuiPanel, ChartWrapper, LoadingState, ErrorState } from '@datumlabs/dashboard-kit';
+import Panel from '@/components/ui/Panel';
+import ChartPanel from '@/components/ui/ChartPanel';
+import PageHeader from '@/components/ui/PageHeader';
+import Metric from '@/components/ui/Metric';
+import Loading from '@/components/ui/Loading';
+import ErrorMsg from '@/components/ui/ErrorMsg';
 import SimpleLineChart from '@/components/charts/SimpleLineChart';
 import InterestRateCurve from '@/components/charts/InterestRateCurve';
 import DonutChart from '@/components/charts/DonutChart';
@@ -69,50 +74,72 @@ export default function MarketDetailPage({
     queryFn: () => fetch(`/api/${protocol}/pools/${upperSymbol}`).then((r) => r.json()),
   });
 
-  if (isPending) return <LoadingState />;
-  if (isError) return <ErrorState message={`Failed to load ${upperSymbol}.`} onRetry={() => refetch()} />;
+  if (isPending) return <Loading message={`Loading ${upperSymbol}`} />;
+  if (isError)
+    return <ErrorMsg message={`Failed to load ${upperSymbol}.`} onRetry={() => refetch()} />;
 
   const { pool, rateModel, history, pairs } = data;
   const assetColor = data.assetColor ?? getAssetColor(upperSymbol);
   const assetName = data.assetName ?? upperSymbol;
 
-  const rateHistory = history.map((h) => ({ date: h.date, supplyApy: h.avgSupplyApy, borrowApy: h.avgBorrowApy }));
+  const rateHistory = history.map((h) => ({
+    date: h.date,
+    supplyApy: h.avgSupplyApy,
+    borrowApy: h.avgBorrowApy,
+  }));
   const utilHistory = history.map((h) => ({ date: h.date, utilization: h.avgUtilization }));
-  const borrowedAgainst = pairs.asCollateral.map((p) => ({ name: p.borrowAsset, value: p.totalBorrowUsd }));
-  const collateralUsed = pairs.asBorrow.map((p) => ({ name: p.collateralAsset, value: p.totalCollateralUsd }));
+  const borrowedAgainst = pairs.asCollateral.map((p) => ({
+    name: p.borrowAsset,
+    value: p.totalBorrowUsd,
+  }));
+  const collateralUsed = pairs.asBorrow.map((p) => ({
+    name: p.collateralAsset,
+    value: p.totalCollateralUsd,
+  }));
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Link
-          href={`/${protocol}/markets`}
-          className="rounded p-1.5 transition-colors"
-          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <div className="flex items-center gap-2">
-          <span className="token-dot" style={{ backgroundColor: assetColor, margin: 0 }} />
-          <span className="text-[11px] font-bold uppercase tracking-[0.1em]" style={{ color: 'var(--accent-orange)' }}>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: '50%',
+                background: assetColor,
+                display: 'inline-block',
+              }}
+            />
             {upperSymbol}
           </span>
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
-            {assetName}
-          </span>
-        </div>
-      </div>
+        }
+        subtitle={assetName}
+        actions={
+          <Link href={`/${protocol}/markets`} className="dropdown-trigger">
+            <ArrowLeft size={12} />
+            Back to Markets
+          </Link>
+        }
+      />
 
-      <TuiPanel title={`${upperSymbol} Overview`} badge="LIVE" noPadding>
-        <div className="grid grid-cols-2 lg:grid-cols-4">
-          <Cell title="Total Supply" value={pool ? formatUsd(pool.totalSupplyUsd, true) : '—'} sub={pool ? `${formatNumber(pool.totalSupply)} ${upperSymbol}` : undefined} />
-          <Cell title="Total Borrows" value={pool ? formatUsd(pool.totalBorrowsUsd, true) : '—'} sub={pool ? `${formatNumber(pool.totalBorrows)} ${upperSymbol}` : undefined} />
-          <Cell title="Supply APY" value={pool ? formatPercent(pool.supplyApy) : '—'} />
-          <Cell title="Borrow APY" value={pool ? formatPercent(pool.borrowApy) : '—'} last />
+      <Panel title={`${upperSymbol} Overview`} badge="LIVE" flush>
+        <div className="grid grid-4">
+          <Metric
+            label="Total Supply"
+            value={pool ? formatUsd(pool.totalSupplyUsd, true) : '—'}
+          />
+          <Metric
+            label="Total Borrows"
+            value={pool ? formatUsd(pool.totalBorrowsUsd, true) : '—'}
+          />
+          <Metric label="Supply APY" value={pool ? formatPercent(pool.supplyApy) : '—'} />
+          <Metric label="Borrow APY" value={pool ? formatPercent(pool.borrowApy) : '—'} />
         </div>
-      </TuiPanel>
+      </Panel>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <TuiPanel title="Interest Rate Model">
+      <div className="grid grid-2">
+        <Panel title="Interest Rate Model">
           {rateModel ? (
             <KvList
               rows={[
@@ -124,43 +151,49 @@ export default function MarketDetailPage({
               ]}
             />
           ) : (
-            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Rate model params not yet indexed</p>
+            <p style={{ fontSize: 12, color: 'var(--fg-muted)' }}>
+              Rate model params not yet indexed
+            </p>
           )}
-        </TuiPanel>
-        <TuiPanel title="Risk Parameters">
+        </Panel>
+        <Panel title="Risk Parameters">
           <KvList
             rows={[
               ['LTV', pool ? formatPercent(pool.ltv * 100) : '—', 'Maximum borrow power per unit of collateral'],
-              ['Liquidation Threshold', pool ? formatPercent(pool.liquidationThreshold * 100) : '—', 'Health factor drops below 1 when borrows exceed this ratio of collateral'],
+              [
+                'Liquidation Threshold',
+                pool ? formatPercent(pool.liquidationThreshold * 100) : '—',
+                'Health factor drops below 1 when borrows exceed this ratio of collateral',
+              ],
               ['Utilization', pool ? formatPercent(pool.utilization) : '—'],
               ['Supply Cap', pool ? formatNumber(pool.supplyCapCeiling) : '—'],
               ['Borrow Cap', pool ? formatNumber(pool.borrowCapCeiling) : '—'],
               ['Price', pool ? formatUsd(pool.price) : '—'],
             ]}
           />
-        </TuiPanel>
+        </Panel>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <ChartWrapper title="Interest Rate History" badge="90D">
+      <div className="grid grid-2">
+        <ChartPanel title="Interest Rate History" badge="90D">
           <SimpleLineChart
             data={rateHistory}
             lines={[
-              { dataKey: 'supplyApy', color: 'var(--accent-green)', name: 'Supply APY' },
-              { dataKey: 'borrowApy', color: 'var(--accent-red)', name: 'Borrow APY' },
+              { dataKey: 'supplyApy', color: 'var(--green)', name: 'Supply APY' },
+              { dataKey: 'borrowApy', color: 'var(--red)', name: 'Borrow APY' },
             ]}
           />
-        </ChartWrapper>
-        <ChartWrapper title="Utilization History" badge="90D">
+        </ChartPanel>
+        <ChartPanel title="Utilization History" badge="90D">
           <SimpleLineChart
             data={utilHistory}
-            lines={[{ dataKey: 'utilization', color: 'var(--accent-blue)', name: 'Utilization' }]}
+            lines={[{ dataKey: 'utilization', color: 'var(--blue)', name: 'Utilization' }]}
           />
-        </ChartWrapper>
+        </ChartPanel>
       </div>
 
       {rateModel && (
-        <ChartWrapper title="Interest Rate Curve" badge="MODEL">
+        <ChartPanel title="Interest Rate Curve" badge="MODEL">
           <InterestRateCurve
             baseRate={rateModel.baseRate}
             multiplier={rateModel.multiplier}
@@ -169,46 +202,50 @@ export default function MarketDetailPage({
             reserveFactor={rateModel.reserveFactor}
             currentUtilization={pool?.utilization}
           />
-        </ChartWrapper>
+        </ChartPanel>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <ChartWrapper title={`Borrowed Against ${upperSymbol}`} badge="ALL">
+      <div className="grid grid-2">
+        <ChartPanel title={`Borrowed Against ${upperSymbol}`} badge="ALL">
           <DonutChart data={borrowedAgainst} />
-        </ChartWrapper>
-        <ChartWrapper title={`Collateral for ${upperSymbol} Borrows`} badge="ALL">
+        </ChartPanel>
+        <ChartPanel title={`Collateral for ${upperSymbol} Borrows`} badge="ALL">
           <DonutChart data={collateralUsed} />
-        </ChartWrapper>
+        </ChartPanel>
       </div>
-    </div>
-  );
-}
-
-function Cell({ title, value, sub, last }: { title: string; value: string; sub?: string; last?: boolean }) {
-  return (
-    <div
-      className={`p-4 lg:p-5 ${last ? '' : 'border-r'}`}
-      style={{ borderColor: 'var(--border)' }}
-    >
-      <div className="counter-label">{title}</div>
-      <div className="counter-value" style={{ color: 'var(--foreground)' }}>{value}</div>
-      {sub && (
-        <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>{sub}</div>
-      )}
     </div>
   );
 }
 
 function KvList({ rows }: { rows: Array<[string, string, string?]> }) {
   return (
-    <div className="grid grid-cols-2 gap-y-2 text-xs">
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr auto',
+        rowGap: 8,
+        columnGap: 16,
+        fontSize: 12,
+      }}
+    >
       {rows.map(([k, v, tooltip]) => (
         <span key={k} className="contents">
-          <span className="flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+          <span
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--fg-muted)' }}
+          >
             {k}
             {tooltip && <InfoTooltip text={tooltip} />}
           </span>
-          <span className="text-right" style={{ color: 'var(--foreground)' }}>{v}</span>
+          <span
+            style={{
+              textAlign: 'right',
+              color: 'var(--fg)',
+              fontFamily: 'var(--font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {v}
+          </span>
         </span>
       ))}
     </div>

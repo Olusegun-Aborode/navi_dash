@@ -5,7 +5,10 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { TuiPanel, LoadingState, ErrorState } from '@datumlabs/dashboard-kit';
+import Panel from '@/components/ui/Panel';
+import PageHeader from '@/components/ui/PageHeader';
+import Loading from '@/components/ui/Loading';
+import ErrorMsg from '@/components/ui/ErrorMsg';
 import InfoTooltip from '@/components/InfoTooltip';
 import { formatUsd, formatDateFull, truncateAddress } from '@/lib/utils';
 
@@ -42,32 +45,27 @@ export default function LiquidatorLeaderboardPage() {
   });
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Link
-          href={`/${protocol}/liquidation`}
-          className="rounded p-1.5 transition-colors"
-          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <span
-          className="text-[11px] font-bold uppercase tracking-[0.1em]"
-          style={{ color: 'var(--accent-orange)' }}
-        >
-          Liquidator Leaderboard
-        </span>
-      </div>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Liquidator Leaderboard"
+        subtitle="Rank unique liquidators by gross profit; drill into each profile."
+        actions={
+          <Link href={`/${protocol}/liquidation`} className="dropdown-trigger">
+            <ArrowLeft size={12} />
+            Back to Liquidation
+          </Link>
+        }
+      />
 
-      <TuiPanel
+      <Panel
         title="Liquidator Leaderboard"
         badge={data ? `${data.total} LIQUIDATORS` : undefined}
-        noPadding
+        flush
       >
         {isPending ? (
-          <LoadingState />
+          <Loading message="Loading leaderboard" />
         ) : isError || !data ? (
-          <ErrorState message="Failed to load leaderboard." onRetry={() => refetch()} />
+          <ErrorMsg message="Failed to load leaderboard." onRetry={() => refetch()} />
         ) : (
           <LeaderboardTable
             protocol={protocol}
@@ -78,7 +76,7 @@ export default function LiquidatorLeaderboardPage() {
             onPageChange={setPage}
           />
         )}
-      </TuiPanel>
+      </Panel>
     </div>
   );
 }

@@ -1,8 +1,7 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { DashboardLayout } from '@datumlabs/dashboard-kit';
+import NaviShell from '@/components/shell/NaviShell';
+import EmailGate from '@/components/shell/EmailGate';
 
 interface ShellProps {
   protocol: string;
@@ -11,36 +10,36 @@ interface ShellProps {
 }
 
 export default function Shell({ protocol, protocolName, children }: ShellProps) {
-  const pathname = usePathname();
-
-  const navItems = [
-    { href: `/${protocol}/overview`, label: 'Overview' },
-    { href: `/${protocol}/markets`, label: 'Markets' },
-    { href: `/${protocol}/liquidation`, label: 'Liquidation' },
-    { href: `/${protocol}/wallets`, label: 'Wallets' },
-    { href: `/${protocol}/methodology`, label: 'Methodology' },
+  const sections = [
+    {
+      label: 'Terminals',
+      items: [
+        { href: `/${protocol}/overview`, label: 'Overview', icon: '◆' },
+        { href: `/${protocol}/markets`, label: 'Markets', icon: '▦' },
+        { href: `/${protocol}/liquidation`, label: 'Liquidation', icon: '▲' },
+        { href: `/${protocol}/wallets`, label: 'Wallets', icon: '≈' },
+      ],
+    },
+    {
+      label: 'Workspace',
+      items: [
+        { href: `/${protocol}/methodology`, label: 'Methodology', icon: '§' },
+      ],
+    },
   ];
 
   return (
-    <DashboardLayout
-      title={`${protocolName} Lending Terminal`}
-      navItems={navItems}
-      pathname={pathname}
-      iconSrc="/branding/icon.png"
-      statusBarLeft="datumlabs.xyz"
-      statusBarRight="Powered by DatumLabs"
-      linkComponent={Link}
-      emailGate={{
-        dashboardName: `${protocolName} Lending Terminal`,
-        features: [
-          'Live liquidation feed',
-          'Health-factor watchlist',
-          'Per-asset risk metrics',
-        ],
-        subscribeEndpoint: '/api/subscribe',
-      }}
+    <EmailGate
+      dashboardName={`${protocolName} Lending Terminal`}
+      features={[
+        'Live liquidation feed',
+        'Health-factor watchlist',
+        'Per-asset risk metrics',
+      ]}
     >
-      {children}
-    </DashboardLayout>
+      <NaviShell protocol={protocol} protocolName={protocolName} sections={sections}>
+        {children}
+      </NaviShell>
+    </EmailGate>
   );
 }

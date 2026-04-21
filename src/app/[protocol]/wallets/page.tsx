@@ -3,7 +3,10 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { TuiPanel, LoadingState, ErrorState } from '@datumlabs/dashboard-kit';
+import Panel from '@/components/ui/Panel';
+import PageHeader from '@/components/ui/PageHeader';
+import Loading from '@/components/ui/Loading';
+import ErrorMsg from '@/components/ui/ErrorMsg';
 import FilterBar from '@/components/FilterBar';
 import WalletsTable, { type WalletRow } from '@/components/tables/WalletsTable';
 
@@ -49,20 +52,31 @@ export default function WalletsPage() {
   const symbols = symbolsQuery.data?.symbols ?? [];
 
   return (
-    <div className="space-y-4">
-      <TuiPanel title="Filters" badge={`${symbols.length} ASSETS`} noPadding>
-        <FilterBar filters={filters} onChange={handleFilterChange} fields={buildFilterFields(symbols)} />
-      </TuiPanel>
-
-      <TuiPanel
+    <div className="flex flex-col gap-4">
+      <PageHeader
         title="Wallet Explorer"
-        badge={walletsQuery.data ? `${walletsQuery.data.total} BORROWERS` : undefined}
-        noPadding
+        subtitle="Live health-factor watchlist across tracked borrowers."
+      />
+
+      <Panel title="Filters" badge={`${symbols.length} ASSETS`} flush>
+        <div style={{ padding: 'var(--panel-pad)' }}>
+          <FilterBar
+            filters={filters}
+            onChange={handleFilterChange}
+            fields={buildFilterFields(symbols)}
+          />
+        </div>
+      </Panel>
+
+      <Panel
+        title="Borrowers"
+        badge={walletsQuery.data ? `${walletsQuery.data.total} WALLETS` : undefined}
+        flush
       >
         {walletsQuery.isPending ? (
-          <LoadingState />
+          <Loading message="Loading wallets" />
         ) : walletsQuery.isError ? (
-          <ErrorState message="Failed to load wallets." onRetry={() => walletsQuery.refetch()} />
+          <ErrorMsg message="Failed to load wallets." onRetry={() => walletsQuery.refetch()} />
         ) : (
           <WalletsTable
             data={walletsQuery.data.wallets ?? []}
@@ -72,7 +86,7 @@ export default function WalletsPage() {
             onPageChange={setPage}
           />
         )}
-      </TuiPanel>
+      </Panel>
     </div>
   );
 }

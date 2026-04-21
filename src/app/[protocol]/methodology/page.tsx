@@ -1,7 +1,8 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { TuiPanel } from '@datumlabs/dashboard-kit';
+import Panel from '@/components/ui/Panel';
+import PageHeader from '@/components/ui/PageHeader';
 
 const TOC = [
   { id: 'data-sources', label: 'Data Sources' },
@@ -20,24 +21,27 @@ export default function MethodologyPage() {
   const upper = protocol?.toUpperCase() ?? 'NAVI';
 
   return (
-    <div className="space-y-4">
-      <TuiPanel title="Methodology" badge={upper}>
-        <p className="mb-3 text-xs" style={{ color: 'var(--text-muted)' }}>
-          This page explains how every metric on the dashboard is computed, where
-          the data comes from, and what the known limitations are.
-        </p>
-        <nav className="flex flex-wrap gap-2">
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Methodology"
+        subtitle="How every metric is computed, where the data comes from, and known limits."
+      />
+
+      <Panel title="Table of Contents" badge={upper}>
+        <div className="methodology">
+          <p>
+            This page explains how every metric on the dashboard is computed, where the data
+            comes from, and what the known limitations are.
+          </p>
+        </div>
+        <nav className="flex flex-wrap gap-2" style={{ marginTop: 12 }}>
           {TOC.map((s) => (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              className="time-btn text-[10px]"
-            >
+            <a key={s.id} href={`#${s.id}`} className="dropdown-trigger">
               {s.label}
             </a>
           ))}
         </nav>
-      </TuiPanel>
+      </Panel>
 
       <Section id="data-sources" title="Data Sources" badge="INFRA">
         <KV
@@ -61,8 +65,8 @@ export default function MethodologyPage() {
           ]}
         />
         <P>
-          The dashboard runs on Vercel Hobby tier, which limits cron schedules to
-          once per day. Metrics can be up to 24 hours stale between refreshes.
+          The dashboard runs on Vercel Hobby tier, which limits cron schedules to once per day.
+          Metrics can be up to 24 hours stale between refreshes.
         </P>
       </Section>
 
@@ -83,9 +87,9 @@ export default function MethodologyPage() {
 
       <Section id="interest-rate-model" title="Interest Rate Model" badge="CURVE">
         <P>
-          Each pool uses a piecewise linear interest rate curve with a &ldquo;kink&rdquo;
-          — a utilization threshold where the borrow rate accelerates sharply to
-          incentivize repayment.
+          Each pool uses a piecewise linear interest rate curve with a &ldquo;kink&rdquo; — a
+          utilization threshold where the borrow rate accelerates sharply to incentivize
+          repayment.
         </P>
         <KV
           rows={[
@@ -97,9 +101,8 @@ export default function MethodologyPage() {
           ]}
         />
         <P>
-          Supply rate is derived from borrow rate: supplyRate = borrowRate *
-          utilization * (1 - reserveFactor). Parameters are read from on-chain
-          config objects via the Sui RPC.
+          Supply rate is derived from borrow rate: supplyRate = borrowRate * utilization * (1 -
+          reserveFactor). Parameters are read from on-chain config objects via the Sui RPC.
         </P>
       </Section>
 
@@ -107,16 +110,16 @@ export default function MethodologyPage() {
         <P>
           Liquidation events are indexed from the Sui blockchain using{' '}
           <Code>suix_queryEvents</Code> with a MoveEventType filter matching NAVI&apos;s
-          LiquidationCall event. Each event contains the liquidator, borrower,
-          collateral asset, debt asset, amounts, prices, and treasury fee.
+          LiquidationCall event. Each event contains the liquidator, borrower, collateral asset,
+          debt asset, amounts, prices, and treasury fee.
         </P>
         <KV
           rows={[
-            ['Amount Scaling', 'Both amounts and prices are scaled by the asset\'s decimal precision (e.g. SUI = 1e9, USDC = 1e6), NOT a universal 1e18'],
+            ['Amount Scaling', "Both amounts and prices are scaled by the asset's decimal precision (e.g. SUI = 1e9, USDC = 1e6), NOT a universal 1e18"],
             ['Collateral USD', 'collateralAmount * collateralPrice (both after decimal scaling)'],
             ['Debt USD', 'debtAmount * debtPrice'],
-            ['Treasury Fee', 'treasuryAmount * collateralPrice — the protocol\'s cut from the seized collateral'],
-            ['Gross Profit', 'collateralUsd - debtUsd - (treasuryAmount * collateralPrice). This is the liquidator\'s revenue before gas'],
+            ['Treasury Fee', "treasuryAmount * collateralPrice — the protocol's cut from the seized collateral"],
+            ['Gross Profit', "collateralUsd - debtUsd - (treasuryAmount * collateralPrice). This is the liquidator's revenue before gas"],
             ['Net Profit', 'Gross Profit minus total gas spent in USD'],
             ['Avg Profit', 'Gross Profit / number of liquidation events'],
           ]}
@@ -125,26 +128,25 @@ export default function MethodologyPage() {
 
       <Section id="gas-efficiency" title="Gas Efficiency" badge="GAS">
         <P>
-          Gas cost is fetched per transaction using{' '}
-          <Code>sui_getTransactionBlock</Code> with <Code>showEffects: true</Code>.
-          The effects contain a <Code>gasCostSummary</Code> object.
+          Gas cost is fetched per transaction using <Code>sui_getTransactionBlock</Code> with{' '}
+          <Code>showEffects: true</Code>. The effects contain a <Code>gasCostSummary</Code>
+          object.
         </P>
         <KV
           rows={[
             ['Gas Used (MIST)', 'computationCost + storageCost - storageRebate. MIST is the smallest unit on Sui (1 SUI = 1,000,000,000 MIST)'],
             ['Gas USD', 'Gas in MIST converted to USD using the SUI price at the time of the event. Price is looked up from PoolSnapshot via binary search on timestamp, with a fallback to the current SUI price'],
             ['Gas/Profit Ratio', 'totalGasUsd / grossProfit. Lower = more capital-efficient liquidations'],
-            ['Coverage %', 'Percentage of a liquidator\'s events that have gas data indexed. Events before the gas column was added require backfilling'],
+            ['Coverage %', "Percentage of a liquidator's events that have gas data indexed. Events before the gas column was added require backfilling"],
           ]}
         />
       </Section>
 
       <Section id="wallet-health" title="Wallet Health Factor" badge="WALLETS">
         <P>
-          Health factors are computed on-chain via the NAVI SDK&apos;s{' '}
-          <Code>devInspect</Code> mechanism — a read-only transaction simulation
-          that returns each wallet&apos;s deposit and borrow positions without
-          modifying state.
+          Health factors are computed on-chain via the NAVI SDK&apos;s <Code>devInspect</Code>{' '}
+          mechanism — a read-only transaction simulation that returns each wallet&apos;s
+          deposit and borrow positions without modifying state.
         </P>
         <KV
           rows={[
@@ -155,11 +157,6 @@ export default function MethodologyPage() {
             ['Safe (>= 2.0)', 'Well-collateralized. Lowest refresh priority'],
           ]}
         />
-        <P>
-          Wallets are discovered from on-chain deposit and borrow events and stored
-          in the WalletPosition table. The refresh cron cycles through them by
-          priority tier, re-reading positions daily.
-        </P>
       </Section>
 
       <Section id="leaderboard" title="Leaderboard Ranking" badge="RANK">
@@ -201,25 +198,28 @@ function Section({
 }) {
   return (
     <div id={id} className="scroll-mt-20">
-      <TuiPanel title={title} badge={badge}>
-        {children}
-      </TuiPanel>
+      <Panel title={title} badge={badge}>
+        <div className="methodology">{children}</div>
+      </Panel>
     </div>
   );
 }
 
 function KV({ rows }: { rows: Array<[string, string]> }) {
   return (
-    <div className="mb-3 space-y-2">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 10 }}>
       {rows.map(([k, v]) => (
-        <div key={k} className="flex gap-3 text-xs">
-          <span
-            className="shrink-0 font-bold"
-            style={{ color: 'var(--accent-orange)', minWidth: 160 }}
-          >
-            {k}
-          </span>
-          <span style={{ color: 'var(--foreground)' }}>{v}</span>
+        <div
+          key={k}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '180px 1fr',
+            gap: 16,
+            fontSize: 12,
+          }}
+        >
+          <span style={{ color: 'var(--orange)', fontWeight: 600 }}>{k}</span>
+          <span style={{ color: 'var(--fg)' }}>{v}</span>
         </div>
       ))}
     </div>
@@ -227,20 +227,20 @@ function KV({ rows }: { rows: Array<[string, string]> }) {
 }
 
 function P({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mb-3 text-xs leading-relaxed" style={{ color: 'var(--foreground)' }}>
-      {children}
-    </p>
-  );
+  return <p>{children}</p>;
 }
 
 function Code({ children }: { children: React.ReactNode }) {
   return (
     <code
-      className="rounded px-1 py-0.5 text-[10px]"
       style={{
-        backgroundColor: 'var(--border)',
-        color: 'var(--accent-orange)',
+        padding: '1px 6px',
+        borderRadius: 3,
+        fontFamily: 'var(--font-mono)',
+        fontSize: 11,
+        background: 'var(--bg-2)',
+        color: 'var(--orange)',
+        border: '1px solid var(--border)',
       }}
     >
       {children}

@@ -3,14 +3,13 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import {
-  TuiPanel,
-  ChartWrapper,
-  LoadingState,
-  ErrorState,
-} from '@datumlabs/dashboard-kit';
+import Panel from '@/components/ui/Panel';
+import Metric from '@/components/ui/Metric';
+import ChartPanel from '@/components/ui/ChartPanel';
+import PageHeader from '@/components/ui/PageHeader';
+import Loading from '@/components/ui/Loading';
+import ErrorMsg from '@/components/ui/ErrorMsg';
 import StackedAreaChart from '@/components/charts/StackedAreaChart';
-import InfoTooltip from '@/components/InfoTooltip';
 import { formatUsd } from '@/lib/utils';
 
 interface PoolData {
@@ -47,9 +46,9 @@ export default function OverviewPage() {
       fetch(`/api/${protocol}/pools/history?days=${days}`).then((r) => r.json()),
   });
 
-  if (poolsQuery.isPending) return <LoadingState />;
+  if (poolsQuery.isPending) return <Loading message="Loading pools" />;
   if (poolsQuery.isError)
-    return <ErrorState message="Failed to load pools." onRetry={() => poolsQuery.refetch()} />;
+    return <ErrorMsg message="Failed to load pools." onRetry={() => poolsQuery.refetch()} />;
 
   const pools = poolsQuery.data;
   const history = historyQuery.data?.history ?? [];
@@ -68,50 +67,75 @@ export default function OverviewPage() {
       if (valueKey === 'tvl') entry[`${row.symbol}_tvl`] = row.closeLiquidityUsd;
     }
     return Array.from(dateMap.values()).sort((a, b) =>
-      String(a.date).localeCompare(String(b.date))
+      String(a.date).localeCompare(String(b.date)),
     );
   }
 
   return (
-    <div className="space-y-4">
-      <TuiPanel title="Protocol Overview" badge="LIVE" noPadding>
-        <div className="grid grid-cols-2 lg:grid-cols-4">
-          <MetricCardCell title="Total Supplied" value={formatUsd(t.totalSupplyUsd, true)} tooltip="Sum of all deposited assets across pools, in USD" />
-          <MetricCardCell title="Total Borrowed" value={formatUsd(t.totalBorrowsUsd, true)} tooltip="Sum of all outstanding borrows across pools, in USD" />
-          <MetricCardCell title="TVL" value={formatUsd(t.tvl, true)} tooltip="Total Value Locked = Total Supplied − Total Borrowed" />
-          <MetricCardCell title="Utilization" value={`${utilizationPct.toFixed(2)}%`} last tooltip="Total Borrowed / Total Supplied as a percentage" />
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title="Protocol Overview"
+        subtitle={
+          <>
+            NAVI · Sui · <span className="ok">LIVE</span>
+          </>
+        }
+      />
+
+      <Panel title="Key Metrics" badge={`${symbols.length} POOLS`} flush>
+        <div className="grid grid-4">
+          <Metric
+            label="Total Supplied"
+            value={formatUsd(t.totalSupplyUsd, true)}
+            tooltip="Sum of all deposited assets across pools, in USD"
+          />
+          <Metric
+            label="Total Borrowed"
+            value={formatUsd(t.totalBorrowsUsd, true)}
+            tooltip="Sum of all outstanding borrows across pools, in USD"
+          />
+          <Metric
+            label="TVL"
+            value={formatUsd(t.tvl, true)}
+            tooltip="Total Value Locked = Total Supplied − Total Borrowed"
+          />
+          <Metric
+            label="Utilization"
+            value={`${utilizationPct.toFixed(2)}%`}
+            tooltip="Total Borrowed / Total Supplied as a percentage"
+          />
         </div>
-      </TuiPanel>
+      </Panel>
 
-      <ChartWrapper title="Total Supply by Asset" badge={`${days}D`} timeRanges={[7, 30, 90]} selectedRange={days} onRangeChange={setDays}>
+      <ChartPanel
+        title="Total Supply by Asset"
+        badge={`${days}D`}
+        timeRanges={[7, 30, 90]}
+        selectedRange={days}
+        onRangeChange={setDays}
+      >
         <StackedAreaChart data={buildChartData('supply')} symbols={symbols} valueKey="supply" />
-      </ChartWrapper>
+      </ChartPanel>
 
-      <ChartWrapper title="Total Borrows by Asset" badge={`${days}D`} timeRanges={[7, 30, 90]} selectedRange={days} onRangeChange={setDays}>
+      <ChartPanel
+        title="Total Borrows by Asset"
+        badge={`${days}D`}
+        timeRanges={[7, 30, 90]}
+        selectedRange={days}
+        onRangeChange={setDays}
+      >
         <StackedAreaChart data={buildChartData('borrows')} symbols={symbols} valueKey="borrows" />
-      </ChartWrapper>
+      </ChartPanel>
 
-      <ChartWrapper title="TVL by Asset" badge={`${days}D`} timeRanges={[7, 30, 90]} selectedRange={days} onRangeChange={setDays}>
+      <ChartPanel
+        title="TVL by Asset"
+        badge={`${days}D`}
+        timeRanges={[7, 30, 90]}
+        selectedRange={days}
+        onRangeChange={setDays}
+      >
         <StackedAreaChart data={buildChartData('tvl')} symbols={symbols} valueKey="tvl" />
-      </ChartWrapper>
+      </ChartPanel>
     </div>
   );
 }
-
-function MetricCardCell({ title, value, last, tooltip }: { title: string; value: string; last?: boolean; tooltip?: string }) {
-  return (
-    <div
-      className={`p-4 lg:p-5 ${last ? '' : 'border-r'}`}
-      style={{ borderColor: 'var(--border)' }}
-    >
-      <div className="counter-label flex items-center gap-1">
-        {title}
-        {tooltip && <InfoTooltip text={tooltip} />}
-      </div>
-      <div className="counter-value" style={{ color: 'var(--foreground)' }}>
-        {value}
-      </div>
-    </div>
-  );
-}
-

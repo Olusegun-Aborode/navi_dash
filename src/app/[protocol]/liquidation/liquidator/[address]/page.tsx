@@ -4,15 +4,14 @@ import { useState, use } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Copy, ExternalLink } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  TuiPanel,
-  ChartWrapper,
-  LoadingState,
-  ErrorState,
-} from '@datumlabs/dashboard-kit';
+import Panel from '@/components/ui/Panel';
+import ChartPanel from '@/components/ui/ChartPanel';
+import PageHeader from '@/components/ui/PageHeader';
+import Metric from '@/components/ui/Metric';
+import Loading from '@/components/ui/Loading';
+import ErrorMsg from '@/components/ui/ErrorMsg';
 import SimpleBarChart from '@/components/charts/SimpleBarChart';
 import LiquidationsTable, { type LiquidationRow } from '@/components/tables/LiquidationsTable';
-import InfoTooltip from '@/components/InfoTooltip';
 import {
   formatUsd,
   formatNumber,
@@ -85,9 +84,9 @@ export default function LiquidatorProfilePage({
       ).then((r) => r.json()),
   });
 
-  if (isPending) return <LoadingState />;
+  if (isPending) return <Loading message="Loading liquidator profile" />;
   if (isError || !data || !data.summary) {
-    return <ErrorState message="Failed to load liquidator profile." onRetry={() => refetch()} />;
+    return <ErrorMsg message="Failed to load liquidator profile." onRetry={() => refetch()} />;
   }
 
   const { summary, gasEfficiency, daily, assets, topBorrowers, events, total } = data;
@@ -102,161 +101,176 @@ export default function LiquidatorProfilePage({
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <Link
-          href={`/${protocol}/liquidation/leaderboard`}
-          className="rounded p-1.5 transition-colors"
-          style={{ color: 'var(--text-muted)', border: '1px solid var(--border)' }}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Link>
-        <span
-          className="text-[11px] font-bold uppercase tracking-[0.1em]"
-          style={{ color: 'var(--accent-orange)' }}
-        >
-          Liquidator
-        </span>
-        <span className="text-[11px]" style={{ color: 'var(--foreground)' }}>
-          {truncateAddress(address, 8)}
-        </span>
-        <button
-          onClick={copyAddress}
-          className="rounded p-1 transition-colors"
-          style={{ color: 'var(--text-muted)' }}
-          title="Copy address"
-        >
-          <Copy className="h-3 w-3" />
-        </button>
-        <a
-          href={`https://suiscan.xyz/mainnet/account/${address}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-1 text-[10px] uppercase tracking-[0.08em]"
-          style={{ color: 'var(--accent-orange)' }}
-        >
-          Suiscan <ExternalLink className="h-3 w-3" />
-        </a>
-      </div>
+    <div className="flex flex-col gap-4">
+      <PageHeader
+        title={`Liquidator · ${truncateAddress(address, 8)}`}
+        subtitle={
+          <>
+            First seen {formatDateFull(summary.firstSeen)} · last active{' '}
+            {formatDateFull(summary.lastSeen)}
+          </>
+        }
+        actions={
+          <>
+            <Link href={`/${protocol}/liquidation/leaderboard`} className="dropdown-trigger">
+              <ArrowLeft size={12} />
+              Leaderboard
+            </Link>
+            <button onClick={copyAddress} className="dropdown-trigger" type="button">
+              <Copy size={12} />
+              Copy
+            </button>
+            <a
+              href={`https://suiscan.xyz/mainnet/account/${address}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="dropdown-trigger"
+              style={{ color: 'var(--orange)', borderColor: 'var(--orange)' }}
+            >
+              Suiscan <ExternalLink size={12} />
+            </a>
+          </>
+        }
+      />
 
-      <TuiPanel title="Liquidator Summary" badge="NAVI" noPadding>
-        <div className="grid grid-cols-2 lg:grid-cols-6">
-          <Cell title="Liquidations" value={summary.count.toLocaleString()} />
-          <Cell title="Gross Profit" value={formatUsd(summary.grossProfit, true)} />
-          <Cell
-            title="Net Profit"
-            value={formatUsd(summary.netProfit, true)}
-            valueColor={
-              summary.netProfit >= 0 ? 'var(--accent-green)' : 'var(--accent-red)'
-            }
-          />
-          <Cell title="Total Seized" value={formatUsd(summary.totalCollateralUsd, true)} />
-          <Cell title="Total Repaid" value={formatUsd(summary.totalDebtUsd, true)} />
-          <Cell title="Avg Profit" value={formatUsd(summary.avgProfit, true)} last />
+      <Panel title="Liquidator Summary" badge="NAVI" flush>
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}
+        >
+          <Metric label="Liquidations" value={summary.count.toLocaleString()} />
+          <Metric label="Gross Profit" value={formatUsd(summary.grossProfit, true)} />
+          <Metric label="Net Profit" value={formatUsd(summary.netProfit, true)} />
+          <Metric label="Total Seized" value={formatUsd(summary.totalCollateralUsd, true)} />
+          <Metric label="Total Repaid" value={formatUsd(summary.totalDebtUsd, true)} />
+          <Metric label="Avg Profit" value={formatUsd(summary.avgProfit, true)} />
         </div>
         <div
-          className="grid grid-cols-2 border-t px-4 py-2 text-[10px] lg:grid-cols-4"
-          style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            gap: 12,
+            padding: '10px 14px',
+            borderTop: '1px solid var(--border)',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            color: 'var(--fg-muted)',
+            textTransform: 'uppercase',
+            letterSpacing: '0.06em',
+          }}
         >
           <span>First Seen: {formatDateFull(summary.firstSeen)}</span>
           <span>Last Active: {formatDateFull(summary.lastSeen)}</span>
           <span>Treasury Paid: {formatUsd(summary.treasuryUsd, true)}</span>
           <span>Total Gas: {formatUsd(summary.totalGasUsd, true)}</span>
         </div>
-      </TuiPanel>
+      </Panel>
 
-      <ChartWrapper title="Daily Gross Profit" badge="ALL TIME">
-        <SimpleBarChart data={dailyChartData} color="var(--accent-green)" />
-      </ChartWrapper>
+      <ChartPanel title="Daily Gross Profit" badge="ALL TIME">
+        <SimpleBarChart data={dailyChartData} color="var(--green)" />
+      </ChartPanel>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <TuiPanel title="Collateral Seized by Asset" badge={`${assets.collateralSeized.length} ASSETS`} noPadding>
+      <div className="grid grid-2">
+        <Panel
+          title="Collateral Seized by Asset"
+          badge={`${assets.collateralSeized.length} ASSETS`}
+          flush
+        >
           <AssetTable rows={assets.collateralSeized} />
-        </TuiPanel>
-        <TuiPanel title="Debt Repaid by Asset" badge={`${assets.debtRepaid.length} ASSETS`} noPadding>
+        </Panel>
+        <Panel title="Debt Repaid by Asset" badge={`${assets.debtRepaid.length} ASSETS`} flush>
           <AssetTable rows={assets.debtRepaid} />
-        </TuiPanel>
+        </Panel>
       </div>
 
-      <TuiPanel title="Borrowers Targeted" badge={`TOP ${topBorrowers.length}`} noPadding>
-        <div className="overflow-x-auto">
-          <table className="data-table">
+      <Panel title="Borrowers Targeted" badge={`TOP ${topBorrowers.length}`} flush>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="datatable">
             <thead>
               <tr>
                 <th>Borrower</th>
-                <th className="text-right">Liquidations</th>
-                <th className="text-right">Total Seized</th>
-                <th className="text-right">Total Repaid</th>
+                <th className="num">Liquidations</th>
+                <th className="num">Total Seized</th>
+                <th className="num">Total Repaid</th>
               </tr>
             </thead>
             <tbody>
               {topBorrowers.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="px-4 py-12 text-center" style={{ color: 'var(--text-muted)' }}>
+                  <td colSpan={4} style={{ textAlign: 'center', padding: '40px 0', color: 'var(--fg-muted)' }}>
                     No borrower data
                   </td>
                 </tr>
               ) : (
                 topBorrowers.map((b) => (
                   <tr key={b.borrower}>
-                    <td className="text-xs">{truncateAddress(b.borrower)}</td>
-                    <td className="text-right">{b.count.toLocaleString()}</td>
-                    <td className="text-right">{formatUsd(b.totalCollateralUsd, true)}</td>
-                    <td className="text-right">{formatUsd(b.totalDebtUsd, true)}</td>
+                    <td>{truncateAddress(b.borrower)}</td>
+                    <td className="num">{b.count.toLocaleString()}</td>
+                    <td className="num">{formatUsd(b.totalCollateralUsd, true)}</td>
+                    <td className="num">{formatUsd(b.totalDebtUsd, true)}</td>
                   </tr>
                 ))
               )}
             </tbody>
           </table>
         </div>
-      </TuiPanel>
+      </Panel>
 
-      <TuiPanel title="Gas Efficiency" badge={`${(gasEfficiency.coverage * 100).toFixed(0)}% INDEXED`} noPadding>
-        <div className="grid grid-cols-2 lg:grid-cols-4">
-          <Cell title="Total Gas Spent" value={formatUsd(gasEfficiency.totalGasUsd, true)} />
-          <Cell
-            title="Avg Gas / Liquidation"
+      <Panel
+        title="Gas Efficiency"
+        badge={`${(gasEfficiency.coverage * 100).toFixed(0)}% INDEXED`}
+        flush
+      >
+        <div className="grid grid-4">
+          <Metric label="Total Gas Spent" value={formatUsd(gasEfficiency.totalGasUsd, true)} />
+          <Metric
+            label="Avg Gas / Liquidation"
             value={formatUsd(gasEfficiency.avgGasUsdPerLiquidation)}
           />
-          <Cell
-            title="Gas / Profit Ratio"
+          <Metric
+            label="Gas / Profit Ratio"
+            tooltip="Total gas spent / gross profit — lower is more efficient"
             value={
               gasEfficiency.gasToProfitRatio == null
                 ? '—'
                 : formatPercent(gasEfficiency.gasToProfitRatio * 100)
             }
-            tooltip="Total gas spent / gross profit — lower is more efficient"
           />
-          <Cell title="Net Profit" value={formatUsd(summary.netProfit, true)} last />
+          <Metric label="Net Profit" value={formatUsd(summary.netProfit, true)} />
         </div>
         {gasEfficiency.coverage < 1 && (
           <div
-            className="border-t px-4 py-2 text-[10px]"
-            style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
+            style={{
+              borderTop: '1px solid var(--border)',
+              padding: '10px 14px',
+              fontSize: 11,
+              color: 'var(--fg-muted)',
+              fontFamily: 'var(--font-mono)',
+            }}
           >
             {((1 - gasEfficiency.coverage) * 100).toFixed(0)}% of this liquidator&apos;s events
             are still being backfilled. Numbers will update as the gas backfill completes.
           </div>
         )}
-      </TuiPanel>
+      </Panel>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <TuiPanel title="Funding Source" badge="COMING SOON">
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
+      <div className="grid grid-2">
+        <Panel title="Funding Source" badge="COMING SOON">
+          <p style={{ fontSize: 12, color: 'var(--fg-muted)', lineHeight: 1.6 }}>
             Funding-source analysis traces inbound SUI / USDC / WETH transfers to a
             liquidator&apos;s address before their first liquidation. This requires a
             dedicated transfer indexer that we have not built yet.
           </p>
-        </TuiPanel>
-        <TuiPanel title="Cross-Protocol Activity" badge="COMING SOON">
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            We currently index NAVI only. Cross-protocol stats (Scallop, Suilend, etc.)
-            require additional event indexers and are not yet wired into the dataset.
+        </Panel>
+        <Panel title="Cross-Protocol Activity" badge="COMING SOON">
+          <p style={{ fontSize: 12, color: 'var(--fg-muted)', lineHeight: 1.6 }}>
+            We currently index NAVI only. Cross-protocol stats (Scallop, Suilend, etc.) require
+            additional event indexers and are not yet wired into the dataset.
           </p>
-        </TuiPanel>
+        </Panel>
       </div>
 
-      <TuiPanel title="Event History" badge={`${total} EVENTS`} noPadding>
+      <Panel title="Event History" badge={`${total} EVENTS`} flush>
         <LiquidationsTable
           data={events}
           total={total}
@@ -264,71 +278,35 @@ export default function LiquidatorProfilePage({
           limit={limit}
           onPageChange={setPage}
         />
-      </TuiPanel>
-    </div>
-  );
-}
-
-function Cell({
-  title,
-  value,
-  sub,
-  last,
-  valueColor,
-  tooltip,
-}: {
-  title: string;
-  value: string;
-  sub?: string;
-  last?: boolean;
-  valueColor?: string;
-  tooltip?: string;
-}) {
-  return (
-    <div
-      className={`p-4 lg:p-5 ${last ? '' : 'border-r'}`}
-      style={{ borderColor: 'var(--border)' }}
-    >
-      <div className="counter-label flex items-center gap-1">
-        {title}
-        {tooltip && <InfoTooltip text={tooltip} />}
-      </div>
-      <div className="counter-value" style={{ color: valueColor ?? 'var(--foreground)' }}>
-        {value}
-      </div>
-      {sub && (
-        <div className="text-[10px] mt-1" style={{ color: 'var(--text-muted)' }}>
-          {sub}
-        </div>
-      )}
+      </Panel>
     </div>
   );
 }
 
 function AssetTable({ rows }: { rows: AssetRow[] }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="data-table">
+    <div style={{ overflowX: 'auto' }}>
+      <table className="datatable">
         <thead>
           <tr>
             <th>Asset</th>
-            <th className="text-right">Count</th>
-            <th className="text-right">Total USD</th>
+            <th className="num">Count</th>
+            <th className="num">Total USD</th>
           </tr>
         </thead>
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={3} className="px-4 py-8 text-center" style={{ color: 'var(--text-muted)' }}>
+              <td colSpan={3} style={{ textAlign: 'center', padding: '32px 0', color: 'var(--fg-muted)' }}>
                 No data
               </td>
             </tr>
           ) : (
             rows.map((r) => (
               <tr key={r.asset}>
-                <td className="text-xs">{r.asset}</td>
-                <td className="text-right">{formatNumber(r.count, 0)}</td>
-                <td className="text-right">{formatUsd(r.totalUsd, true)}</td>
+                <td>{r.asset}</td>
+                <td className="num">{formatNumber(r.count, 0)}</td>
+                <td className="num">{formatUsd(r.totalUsd, true)}</td>
               </tr>
             ))
           )}
