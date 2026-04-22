@@ -75,12 +75,16 @@ export default function DonutChart({ data }: DonutChartProps) {
     <div style={{ position: 'relative', height: '100%' }}>
       <ResponsiveContainer width="100%" height="100%">
         <PieChart margin={{ top: 12, right: 56, bottom: 12, left: 56 }}>
+          {/* Fixed pixel radii (not percentages) — Recharts will otherwise
+              auto-shrink the pie to fit its leader-line labels, so two
+              donuts side-by-side render at different visible sizes when
+              one has long labels and the other has short ones. */}
           <Pie
             data={slices}
             cx="50%"
             cy="50%"
-            innerRadius="50%"
-            outerRadius="72%"
+            innerRadius={72}
+            outerRadius={104}
             paddingAngle={2}
             dataKey="value"
             stroke="var(--surface)"
