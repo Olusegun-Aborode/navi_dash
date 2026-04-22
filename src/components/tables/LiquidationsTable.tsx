@@ -58,27 +58,29 @@ export default function LiquidationsTable({
   return (
     <>
       <div className="overflow-x-auto">
-        {/* Table sized to content (width:auto overrides .data-table { width:100% }).
-            9 columns — explicit pixel widths keep them honest. Total ≈ 1080px;
-            on narrower screens the outer .overflow-x-auto scrolls horizontally. */}
-        <table className="data-table" style={{ tableLayout: 'fixed', width: 'auto' }}>
+        {/* Percentage widths summing to 100% + width:100% + table-layout:fixed.
+            The table fills the panel (no right-side gap) and columns grow
+            proportionally instead of dumping slack into one. minWidth keeps
+            the layout readable before the outer overflow-x-auto kicks in. */}
+        <table
+          className="data-table"
+          style={{ tableLayout: 'fixed', width: '100%', minWidth: 1020 }}
+        >
           <colgroup>
-            <col style={{ width: 110 }} /> {/* Time */}
-            <col style={{ width: 70 }} />  {/* Protocol */}
-            <col style={{ width: 140 }} /> {/* Pair */}
-            <col style={{ width: 150 }} /> {/* Collateral */}
-            <col style={{ width: 150 }} /> {/* Debt */}
-            <col style={{ width: 130 }} /> {/* Profit */}
-            <col style={{ width: 140 }} /> {/* Liquidator */}
-            <col style={{ width: 140 }} /> {/* Borrower */}
-            <col style={{ width: 60 }} />  {/* Tx */}
+            <col style={{ width: '10%' }} /> {/* Time */}
+            <col style={{ width: '14%' }} /> {/* Pair */}
+            <col style={{ width: '14%' }} /> {/* Collateral */}
+            <col style={{ width: '14%' }} /> {/* Debt */}
+            <col style={{ width: '12%' }} /> {/* Profit */}
+            <col style={{ width: '15%' }} /> {/* Liquidator */}
+            <col style={{ width: '15%' }} /> {/* Borrower */}
+            <col style={{ width: '6%' }} />  {/* Tx */}
           </colgroup>
           <thead>
             <tr>
               <th>
                 Time <ChevronDown className="inline h-3 w-3" />
               </th>
-              <th>Protocol</th>
               <th>Pair</th>
               <th className="text-right">Collateral</th>
               <th className="text-right">Debt</th>
@@ -92,7 +94,7 @@ export default function LiquidationsTable({
             {data.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={8}
                   className="px-4 py-12 text-center"
                   style={{ color: 'var(--fg-muted)' }}
                 >
@@ -112,24 +114,6 @@ export default function LiquidationsTable({
                   <tr key={row.id}>
                     <td className="text-[10px]" style={{ color: 'var(--fg-muted)' }}>
                       {formatDateFull(row.timestamp)}
-                    </td>
-                    <td>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '2px 6px',
-                          borderRadius: 3,
-                          border: '1px solid var(--border)',
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 10,
-                          textTransform: 'uppercase',
-                          letterSpacing: '0.08em',
-                          color: 'var(--fg)',
-                          background: 'var(--surface-2)',
-                        }}
-                      >
-                        {row.protocol}
-                      </span>
                     </td>
                     <td className="text-xs">
                       <span
