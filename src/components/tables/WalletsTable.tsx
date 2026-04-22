@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronUp, ArrowUpDown } from 'lucide-react';
 import { formatUsd, truncateAddress, formatNumber, getAssetColor } from '@/lib/utils';
 import { healthFactorColor, healthFactorLabel } from '@/lib/constants';
 import InfoTooltip from '@/components/InfoTooltip';
@@ -17,12 +17,18 @@ export interface WalletRow {
   borrowAssets: string;
 }
 
+export type WalletSortField = 'healthFactor' | 'collateralUsd' | 'borrowUsd';
+export type SortDir = 'asc' | 'desc';
+
 interface WalletsTableProps {
   data: WalletRow[];
   total: number;
   page: number;
   limit: number;
   onPageChange: (page: number) => void;
+  sortBy: WalletSortField;
+  sortDir: SortDir;
+  onSortChange: (field: WalletSortField) => void;
 }
 
 interface WalletDetail {
@@ -74,12 +80,66 @@ function AssetChips({ json }: { json: string }) {
   );
 }
 
+/**
+ * Header cell with built-in sort affordance. Active column shows its
+ * direction; inactive columns show a dim up/down glyph so it's obvious
+ * every column is sortable.
+ */
+function SortableHeader({
+  field,
+  label,
+  tooltip,
+  align,
+  sortBy,
+  sortDir,
+  onSortChange,
+}: {
+  field: WalletSortField;
+  label: string;
+  tooltip?: string;
+  align?: 'left' | 'right';
+  sortBy: WalletSortField;
+  sortDir: SortDir;
+  onSortChange: (f: WalletSortField) => void;
+}) {
+  const active = sortBy === field;
+  const icon = active ? (
+    sortDir === 'asc' ? (
+      <ChevronUp className="inline h-3 w-3" />
+    ) : (
+      <ChevronDown className="inline h-3 w-3" />
+    )
+  ) : (
+    <ArrowUpDown className="inline h-3 w-3" style={{ opacity: 0.35 }} />
+  );
+  return (
+    <th
+      className={align === 'right' ? 'text-right' : ''}
+      onClick={() => onSortChange(field)}
+      style={{ cursor: 'pointer', userSelect: 'none' }}
+    >
+      {align === 'right' ? (
+        <>
+          {icon} {tooltip && <InfoTooltip text={tooltip} />} {label}
+        </>
+      ) : (
+        <>
+          {label} {tooltip && <InfoTooltip text={tooltip} />} {icon}
+        </>
+      )}
+    </th>
+  );
+}
+
 export default function WalletsTable({
   data,
   total,
   page,
   limit,
   onPageChange,
+  sortBy,
+  sortDir,
+  onSortChange,
 }: WalletsTableProps) {
   const params = useParams<{ protocol: string }>();
   const protocol = params?.protocol ?? 'navi';
@@ -94,31 +154,53 @@ export default function WalletsTable({
   return (
     <>
       <div className="overflow-x-auto">
-        {/* Fixed layout + explicit widths so columns don't jump around when
-            addresses / asset chips vary in length. Expanded breakdown rows
-            use colSpan={6}, which spans cols 2-7 — their combined width is
-            still exactly 97% thanks to the layout mode. */}
-        <table className="data-table" style={{ tableLayout: 'fixed', minWidth: 1000 }}>
+        {/* 6 content columns + expand chevron. Percentages fill the panel
+            (no right gap) and grow proportionally on wider screens. */}
+        <table
+          className="data-table"
+          style={{ tableLayout: 'fixed', width: '100%', minWidth: 1040 }}
+        >
           <colgroup>
-            <col style={{ width: '3%' }} />  {/* expand chevron */}
+            <col style={{ width: '4%' }} />  {/* expand chevron */}
             <col style={{ width: '14%' }} /> {/* Wallet */}
-            <col style={{ width: '13%' }} /> {/* Collateral USD */}
-            <col style={{ width: '18%' }} /> {/* Collateral assets */}
-            <col style={{ width: '13%' }} /> {/* Borrows USD */}
-            <col style={{ width: '18%' }} /> {/* Borrow assets */}
-            <col style={{ width: '21%' }} /> {/* Health Factor */}
+            <col style={{ width: '18%' }} /> {/* Health Factor (now column 2) */}
+            <col style={{ width: '27%' }} /> {/* Collateral (USD + chips) */}
+            <col style={{ width: '27%' }} /> {/* Borrows (USD + chips) */}
+            <col style={{ width: '10%' }} /> {/* LTV */}
           </colgroup>
           <thead>
             <tr>
               <th aria-label="expand" />
               <th>Wallet</th>
-              <th className="text-right">Collateral</th>
-              <th>Assets</th>
-              <th className="text-right">Borrows</th>
-              <th>Assets</th>
-              <th className="text-right">
-                Health Factor{' '}
-                <InfoTooltip text="Weighted collateral / total borrows — below 1.0 = liquidatable" />
+              <SortableHeader
+                field="healthFactor"
+                label="Health Factor"
+                tooltip="Weighted collateral / total borrows — below 1.0 = liquidatable"
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSortChange={onSortChange}
+              />
+              <SortableHeader
+                field="collateralUsd"
+                label="Collateral"
+                align="right"
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSortChange={onSortChange}
+              />
+              <SortableHeader
+                field="borrowUsd"
+                label="Borrows"
+                align="right"
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSortChange={onSortChange}
+              />
+              <th
+                className="text-right"
+                title="Loan-to-Value — raw borrows / collateral. A different view on leverage than HF (which weights collateral by asset-specific LTV caps)."
+              >
+                LTV
               </th>
             </tr>
           </thead>
@@ -126,7 +208,7 @@ export default function WalletsTable({
             {data.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={6}
                   className="px-4 py-12 text-center"
                   style={{ color: 'var(--fg-muted)' }}
                 >
@@ -200,10 +282,18 @@ function WalletGroup({
   onToggle: () => void;
   protocol: string;
 }) {
+  const ltv = row.collateralUsd > 0 ? (row.borrowUsd / row.collateralUsd) * 100 : null;
+
+  // Left border uses the HF band color — turns a sortable table into a
+  // risk heatmap you can scan vertically even while scrolling.
+  const tintStyle: React.CSSProperties = {
+    borderLeft: `2px solid ${hfColor}`,
+  };
+
   return (
     <>
       <tr onClick={onToggle} style={{ cursor: 'pointer' }} aria-expanded={isOpen}>
-        <td style={{ color: 'var(--fg-muted)' }}>
+        <td style={{ color: 'var(--fg-muted)', ...tintStyle }}>
           {isOpen ? (
             <ChevronDown className="h-3 w-3" />
           ) : (
@@ -211,29 +301,40 @@ function WalletGroup({
           )}
         </td>
         <td className="text-xs">{truncateAddress(row.address)}</td>
-        <td className="text-right">{formatUsd(row.collateralUsd, true)}</td>
         <td>
-          <AssetChips json={row.collateralAssets} />
-        </td>
-        <td className="text-right">{formatUsd(row.borrowUsd, true)}</td>
-        <td>
-          <AssetChips json={row.borrowAssets} />
-        </td>
-        <td className="text-right">
           <span
             className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] uppercase tracking-[0.05em]"
-            style={{ color: hfColor, background: `${hfColor}15`, border: `1px solid ${hfColor}40` }}
+            style={{
+              color: hfColor,
+              background: `${hfColor}15`,
+              border: `1px solid ${hfColor}40`,
+            }}
           >
             <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: hfColor }} />
             {row.healthFactor >= 100 ? '99+' : formatNumber(row.healthFactor, 2)}
             <span className="opacity-70">{hfLabel}</span>
           </span>
         </td>
+        <td className="text-right">
+          <div>{formatUsd(row.collateralUsd, true)}</div>
+          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
+            <AssetChips json={row.collateralAssets} />
+          </div>
+        </td>
+        <td className="text-right">
+          <div>{formatUsd(row.borrowUsd, true)}</div>
+          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
+            <AssetChips json={row.borrowAssets} />
+          </div>
+        </td>
+        <td className="text-right">
+          <LtvCell ltv={ltv} />
+        </td>
       </tr>
       {isOpen && (
         <tr style={{ background: 'var(--surface-2)' }}>
-          <td />
-          <td colSpan={6} style={{ padding: '14px 14px 18px' }}>
+          <td style={tintStyle} />
+          <td colSpan={5} style={{ padding: '14px 14px 18px' }}>
             <WalletBreakdown
               address={row.address}
               protocol={protocol}
@@ -248,9 +349,47 @@ function WalletGroup({
 }
 
 /**
- * Fetched lazily on row expand. While the on-chain call is in flight we
- * render a loading placeholder; on error we surface it so the user isn't
- * staring at an empty panel.
+ * LTV = borrows / collateral (raw, unweighted). Different from HF which
+ * applies per-asset LTV caps — so a wallet with 100% LTV here might have
+ * HF 1.2 depending on its collateral mix. Shown as a percent + thin bar.
+ */
+function LtvCell({ ltv }: { ltv: number | null }) {
+  if (ltv === null) {
+    return <span style={{ color: 'var(--fg-muted)' }}>—</span>;
+  }
+  // Color the bar by how close to 100%: green (< 50), yellow (< 75), red (>= 75).
+  const barColor =
+    ltv < 50 ? 'var(--green)' : ltv < 75 ? 'var(--yellow)' : 'var(--red)';
+  const pct = Math.min(ltv, 100);
+  return (
+    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, minWidth: 70 }}>
+      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{ltv.toFixed(1)}%</span>
+      <div
+        style={{
+          width: 60,
+          height: 3,
+          background: 'var(--bg-2)',
+          borderRadius: 2,
+          overflow: 'hidden',
+        }}
+      >
+        <div
+          style={{
+            width: `${pct}%`,
+            height: '100%',
+            background: barColor,
+            transition: 'width 0.3s ease',
+          }}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Lazily fetched on row expand. Returns the per-asset collateral/borrow
+ * breakdown so operators can see, e.g., that $552 of collateral is $491
+ * vSUI + $61 USDC.
  */
 function WalletBreakdown({
   address,
