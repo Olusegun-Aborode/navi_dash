@@ -34,7 +34,18 @@ export default function LiquidationsTable({ data, total, page, limit, onPageChan
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="data-table">
+        {/* table-layout:fixed + an explicit <colgroup> so the browser stops
+            dumping slack width into an arbitrary column. Percentages sum to
+            100 and collapse proportionally on narrow screens. */}
+        <table className="data-table" style={{ tableLayout: 'fixed', minWidth: 900 }}>
+          <colgroup>
+            <col style={{ width: '12%' }} />  {/* Date */}
+            <col style={{ width: '18%' }} />  {/* Borrower */}
+            <col style={{ width: '18%' }} />  {/* Liquidator */}
+            <col style={{ width: '20%' }} />  {/* Collateral Seized */}
+            <col style={{ width: '20%' }} />  {/* Debt Repaid */}
+            <col style={{ width: '12%' }} />  {/* Tx */}
+          </colgroup>
           <thead>
             <tr>
               <th>Date</th>
