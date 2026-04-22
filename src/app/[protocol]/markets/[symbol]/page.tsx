@@ -138,7 +138,7 @@ export default function MarketDetailPage({
         </div>
       </Panel>
 
-      <div className="grid grid-2">
+      <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
         <Panel title="Interest Rate Model">
           {rateModel ? (
             <KvList
@@ -174,7 +174,7 @@ export default function MarketDetailPage({
         </Panel>
       </div>
 
-      <div className="grid grid-2">
+      <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
         <ChartPanel title="Interest Rate History" badge="90D">
           <SimpleLineChart
             data={rateHistory}
@@ -205,7 +205,7 @@ export default function MarketDetailPage({
         </ChartPanel>
       )}
 
-      <div className="grid grid-2">
+      <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
         <ChartPanel title={`Borrowed Against ${upperSymbol}`} badge="ALL">
           <DonutChart data={borrowedAgainst} />
         </ChartPanel>

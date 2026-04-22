@@ -170,7 +170,7 @@ export default function LiquidatorProfilePage({
         <SimpleBarChart data={dailyChartData} color="var(--green)" />
       </ChartPanel>
 
-      <div className="grid grid-2">
+      <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
         <Panel
           title="Collateral Seized by Asset"
           badge={`${assets.collateralSeized.length} ASSETS`}
@@ -254,7 +254,7 @@ export default function LiquidatorProfilePage({
         )}
       </Panel>
 
-      <div className="grid grid-2">
+      <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
         <Panel title="Funding Source" badge="COMING SOON">
           <p style={{ fontSize: 12, color: 'var(--fg-muted)', lineHeight: 1.6 }}>
             Funding-source analysis traces inbound SUI / USDC / WETH transfers to a
