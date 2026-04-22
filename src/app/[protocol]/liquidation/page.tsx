@@ -13,7 +13,7 @@ import ErrorMsg from '@/components/ui/ErrorMsg';
 import FilterBar from '@/components/FilterBar';
 import LiquidationsTable, { type LiquidationRow } from '@/components/tables/LiquidationsTable';
 import DonutChart from '@/components/charts/DonutChart';
-import SimpleBarChart from '@/components/charts/SimpleBarChart';
+import StackedDailyChart from '@/components/charts/StackedDailyChart';
 
 function buildFilterFields(symbols: string[]) {
   return [
@@ -29,6 +29,8 @@ function buildFilterFields(symbols: string[]) {
 interface LiquidationStats {
   collateralDistribution: Array<{ asset: string; totalUsd: number }>;
   dailySeized: Array<{ date: string; totalUsd: number }>;
+  dailySeizedByAsset: Array<Record<string, string | number>>;
+  dailySeizedAssets: string[];
 }
 interface EventsResponse {
   events: LiquidationRow[];
@@ -70,10 +72,8 @@ export default function LiquidationPage() {
     name: d.asset,
     value: d.totalUsd,
   }));
-  const barData = (statsQuery.data?.dailySeized ?? []).map((d) => ({
-    date: d.date,
-    value: d.totalUsd,
-  }));
+  const dailyByAsset = statsQuery.data?.dailySeizedByAsset ?? [];
+  const dailyAssets = statsQuery.data?.dailySeizedAssets ?? [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -107,14 +107,15 @@ export default function LiquidationPage() {
         </div>
       </Panel>
 
-      {/* Force matching heights + equal 1:1 columns so the donut (with its
-          side legend) and the daily bar chart look like a true pair. */}
+      {/* Donut + daily chart as a pair, same height, equal columns. The
+          daily bars are stacked by collateral asset so operators can see
+          not just *how much* was seized on a given day, but *what*. */}
       <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
         <ChartPanel title="Collateral Seized Distribution" badge="30D" height={320}>
           <DonutChart data={donutData} />
         </ChartPanel>
         <ChartPanel title="Daily Collateral Seized" badge="30D" height={320}>
-          <SimpleBarChart data={barData} color="var(--red)" />
+          <StackedDailyChart data={dailyByAsset} assets={dailyAssets} />
         </ChartPanel>
       </div>
 

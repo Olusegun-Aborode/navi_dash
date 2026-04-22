@@ -34,17 +34,21 @@ export default function LiquidationsTable({ data, total, page, limit, onPageChan
   return (
     <>
       <div className="overflow-x-auto">
-        {/* table-layout:fixed + an explicit <colgroup> so the browser stops
-            dumping slack width into an arbitrary column. Percentages sum to
-            100 and collapse proportionally on narrow screens. */}
-        <table className="data-table" style={{ tableLayout: 'fixed', minWidth: 900 }}>
+        {/* Size the table to its content (not to the panel) so addresses +
+            small USD figures don't leave rivers of whitespace between
+            columns. width:auto overrides the global .data-table { width:100% }
+            and the pixel widths in <colgroup> become the source of truth. */}
+        <table
+          className="data-table"
+          style={{ tableLayout: 'fixed', width: 'auto' }}
+        >
           <colgroup>
-            <col style={{ width: '12%' }} />  {/* Date */}
-            <col style={{ width: '18%' }} />  {/* Borrower */}
-            <col style={{ width: '18%' }} />  {/* Liquidator */}
-            <col style={{ width: '20%' }} />  {/* Collateral Seized */}
-            <col style={{ width: '20%' }} />  {/* Debt Repaid */}
-            <col style={{ width: '12%' }} />  {/* Tx */}
+            <col style={{ width: 130 }} /> {/* Date */}
+            <col style={{ width: 150 }} /> {/* Borrower */}
+            <col style={{ width: 170 }} /> {/* Liquidator (linked, slightly wider) */}
+            <col style={{ width: 170 }} /> {/* Collateral Seized (USD + sub) */}
+            <col style={{ width: 170 }} /> {/* Debt Repaid (USD + sub) */}
+            <col style={{ width: 70 }} />  {/* Tx (VIEW) */}
           </colgroup>
           <thead>
             <tr>
