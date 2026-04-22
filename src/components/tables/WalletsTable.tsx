@@ -313,14 +313,27 @@ export default function WalletsTable({
 /**
  * LTV = borrows / collateral (raw, unweighted). Different from HF, which
  * applies per-asset LTV caps. Shown as percent + thin bar.
+ *
+ * Anything above 100% means the wallet is underwater (debt exceeds raw
+ * collateral value) — usually dust collateral from a stale index, or a
+ * position that escaped liquidation during a price crash. The exact
+ * percentage past 100 isn't meaningful, so we clamp the label to "100%+"
+ * and keep the raw number in the native title for debugging.
  */
 function LtvCell({ ltv }: { ltv: number | null }) {
   if (ltv === null) {
     return <span style={{ color: 'var(--fg-muted)' }}>—</span>;
   }
-  const barColor =
-    ltv < 50 ? 'var(--green)' : ltv < 75 ? 'var(--yellow)' : 'var(--red)';
+  const over = ltv > 100;
+  const barColor = over
+    ? 'var(--red)'
+    : ltv < 50
+    ? 'var(--green)'
+    : ltv < 75
+    ? 'var(--yellow)'
+    : 'var(--red)';
   const pct = Math.min(ltv, 100);
+  const label = over ? '100%+' : `${ltv.toFixed(1)}%`;
   return (
     <div
       style={{
@@ -330,8 +343,21 @@ function LtvCell({ ltv }: { ltv: number | null }) {
         gap: 3,
         minWidth: 70,
       }}
+      title={
+        over
+          ? `Underwater — raw ratio ${ltv.toFixed(1)}% (debt exceeds collateral)`
+          : undefined
+      }
     >
-      <span style={{ fontVariantNumeric: 'tabular-nums' }}>{ltv.toFixed(1)}%</span>
+      <span
+        style={{
+          fontVariantNumeric: 'tabular-nums',
+          color: over ? 'var(--red)' : undefined,
+          fontWeight: over ? 600 : undefined,
+        }}
+      >
+        {label}
+      </span>
       <div
         style={{
           width: 60,
