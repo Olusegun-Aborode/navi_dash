@@ -4,11 +4,20 @@ import { getDb } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
+// Allowed values for ?days= — keeps the client from asking for absurd windows
+// that would pull the whole table. 90 keeps the old default.
+const ALLOWED_DAYS = new Set([7, 30, 90, 180, 365]);
+const DEFAULT_DAYS = 90;
+
 /**
- * GET /api/[protocol]/pools/[symbol] — Single pool detail with history.
+ * GET /api/[protocol]/pools/[symbol]?days=N
+ *
+ * Single-pool detail. `days` controls the window for the returned
+ * `history` series (Interest Rate + Utilization charts on the market
+ * detail page). Defaults to 90 for backwards compatibility.
  */
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ protocol: string; symbol: string }> }
 ) {
   const { protocol: slug, symbol } = await params;
@@ -19,6 +28,11 @@ export async function GET(
   }
 
   const upperSymbol = symbol.toUpperCase();
+
+  // Parse ?days=, whitelisted.
+  const { searchParams } = new URL(req.url);
+  const rawDays = Number(searchParams.get('days') ?? DEFAULT_DAYS);
+  const days = ALLOWED_DAYS.has(rawDays) ? rawDays : DEFAULT_DAYS;
 
   try {
     const pool = await entry.adapter.fetchPool(upperSymbol);
@@ -40,7 +54,7 @@ export async function GET(
       });
 
       const since = new Date();
-      since.setDate(since.getDate() - 90);
+      since.setDate(since.getDate() - days);
       history = await db.poolDaily.findMany({
         where: { protocol: slug, symbol: upperSymbol, date: { gte: since } },
         orderBy: { date: 'asc' },

@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -69,9 +69,16 @@ export default function MarketDetailPage({
   const { protocol, symbol } = use(params);
   const upperSymbol = symbol.toUpperCase();
 
+  // Shared time-range state across the two history charts (matches the
+  // Overview page pattern). Interest Rate Curve + the pair donuts don't
+  // move with this: the curve is param-based, and the pairs come from a
+  // snapshot aggregate with no per-day dimension in the schema.
+  const [days, setDays] = useState(30);
+
   const { data, isPending, isError, refetch } = useQuery<DetailResponse>({
-    queryKey: ['poolDetail', protocol, upperSymbol],
-    queryFn: () => fetch(`/api/${protocol}/pools/${upperSymbol}`).then((r) => r.json()),
+    queryKey: ['poolDetail', protocol, upperSymbol, days],
+    queryFn: () =>
+      fetch(`/api/${protocol}/pools/${upperSymbol}?days=${days}`).then((r) => r.json()),
   });
 
   if (isPending) return <Loading message={`Loading ${upperSymbol}`} />;
@@ -175,7 +182,13 @@ export default function MarketDetailPage({
       </div>
 
       <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-        <ChartPanel title="Interest Rate History" badge="90D">
+        <ChartPanel
+          title="Interest Rate History"
+          badge={`${days}D`}
+          timeRanges={[7, 30, 90]}
+          selectedRange={days}
+          onRangeChange={setDays}
+        >
           <SimpleLineChart
             data={rateHistory}
             lines={[
@@ -184,7 +197,13 @@ export default function MarketDetailPage({
             ]}
           />
         </ChartPanel>
-        <ChartPanel title="Utilization History" badge="90D">
+        <ChartPanel
+          title="Utilization History"
+          badge={`${days}D`}
+          timeRanges={[7, 30, 90]}
+          selectedRange={days}
+          onRangeChange={setDays}
+        >
           <SimpleLineChart
             data={utilHistory}
             lines={[{ dataKey: 'utilization', color: 'var(--blue)', name: 'Utilization' }]}
