@@ -63,15 +63,34 @@ export default function MarketsTable({ data, protocolSlug }: MarketsTableProps) 
       <table className="data-table">
         <thead>
           <tr>
-            {columns.map((col) => (
-              <th
-                key={col.key}
-                className={cn('cursor-pointer transition-colors hover:text-white', col.align === 'right' && 'text-right')}
-                onClick={() => handleSort(col.key)}
-              >
-                {col.label} {col.tooltip && <InfoTooltip text={col.tooltip} />} <SortIcon col={col.key} />
-              </th>
-            ))}
+            {columns.map((col) => {
+              const isRight = col.align === 'right';
+              // Right-aligned numeric columns: render the sort arrow + tooltip
+              // BEFORE the label so the label's right edge stays flush with the
+              // numbers below it regardless of which column is active.
+              return (
+                <th
+                  key={col.key}
+                  className={cn(
+                    'cursor-pointer transition-colors hover:text-white',
+                    isRight && 'text-right',
+                  )}
+                  onClick={() => handleSort(col.key)}
+                >
+                  {isRight ? (
+                    <>
+                      <SortIcon col={col.key} />
+                      {col.tooltip && <InfoTooltip text={col.tooltip} />} {col.label}
+                    </>
+                  ) : (
+                    <>
+                      {col.label} {col.tooltip && <InfoTooltip text={col.tooltip} />}{' '}
+                      <SortIcon col={col.key} />
+                    </>
+                  )}
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody>

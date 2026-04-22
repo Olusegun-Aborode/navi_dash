@@ -40,17 +40,15 @@ export default function LiquidationsTable({ data, total, page, limit, onPageChan
               <th>Date</th>
               <th>Borrower</th>
               <th>Liquidator</th>
-              <th className="text-right">Collateral</th>
-              <th className="text-right">Collateral USD</th>
+              <th className="text-right">Collateral Seized</th>
               <th className="text-right">Debt Repaid</th>
-              <th className="text-right">Debt USD</th>
               <th>Tx</th>
             </tr>
           </thead>
           <tbody>
             {data.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center" style={{ color: 'var(--text-muted)' }}>
+                <td colSpan={6} className="px-4 py-12 text-center" style={{ color: 'var(--text-muted)' }}>
                   No liquidation events indexed yet — run the liquidation indexer cron
                 </td>
               </tr>
@@ -70,14 +68,22 @@ export default function LiquidationsTable({ data, total, page, limit, onPageChan
                       {truncateAddress(row.liquidator)}
                     </Link>
                   </td>
+                  {/* Merge "amount" + "amount USD" into a single column so the
+                      USD headline lines up across all rows (the token-suffix
+                      variant broke alignment when symbols had different widths:
+                      e.g. `123 vSUI` vs `4,567 USDC`). */}
                   <td className="text-right">
-                    {formatNumber(row.collateralAmount)} {row.collateralAsset}
+                    <div>{formatUsd(row.collateralUsd, true)}</div>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                      {formatNumber(row.collateralAmount)} {row.collateralAsset}
+                    </div>
                   </td>
-                  <td className="text-right">{formatUsd(row.collateralUsd, true)}</td>
                   <td className="text-right">
-                    {formatNumber(row.debtAmount)} {row.debtAsset}
+                    <div>{formatUsd(row.debtUsd, true)}</div>
+                    <div className="text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                      {formatNumber(row.debtAmount)} {row.debtAsset}
+                    </div>
                   </td>
-                  <td className="text-right">{formatUsd(row.debtUsd, true)}</td>
                   <td>
                     <a
                       href={`https://suiscan.xyz/mainnet/tx/${row.txDigest}`}

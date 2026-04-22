@@ -592,6 +592,29 @@ body[data-aesthetic="refined"] .metric-value { font-size: 24px; }
 .data-table tbody tr:hover { background: var(--hover); }
 .data-table tbody tr:last-child td { border-bottom: none; }
 
+/* Numeric columns: mono + tabular digits so values align by magnitude.
+   Applies to any cell or header with `.text-right` inside a `.data-table`. */
+.data-table thead th.text-right,
+.data-table tbody td.text-right {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.data-table tbody td.text-right {
+  font-family: var(--font-mono);
+}
+
+/* Right-aligned headers often carry a sort icon or tooltip alongside the
+   label. Stack them as a flex row that hugs the right edge so the label's
+   right edge lines up with the numbers below, regardless of which icons are
+   currently rendered. */
+.data-table thead th.text-right > * {
+  vertical-align: middle;
+}
+.data-table thead th.text-right {
+  /* Reserve a tiny gutter so the sort arrow never clips the cell edge. */
+  padding-right: 14px;
+}
+
 /* Small coloured dot used next to asset symbols */
 .token-dot {
   width: 8px; height: 8px; border-radius: 50%;

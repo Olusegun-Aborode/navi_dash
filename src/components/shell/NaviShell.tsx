@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Moon, Sun, Search } from 'lucide-react';
+import { Moon, Sun } from 'lucide-react';
 import { DEFAULTS, TWEAK_KEYS, type Aesthetic, type Density, type Theme } from './tweaks-context';
 
 interface NavItem {
@@ -99,11 +99,6 @@ export default function NaviShell({ protocolName, protocol, sections, children }
           </span>
         </div>
         <div className="topbar-right">
-          <button className="cmdk-trigger" type="button">
-            <Search size={12} />
-            <span>Search assets, pools, wallets…</span>
-            <kbd>⌘K</kbd>
-          </button>
           <span className="live-pill">
             <span className="dot" /> LIVE
           </span>

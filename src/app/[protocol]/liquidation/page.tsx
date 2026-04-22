@@ -107,11 +107,13 @@ export default function LiquidationPage() {
         </div>
       </Panel>
 
-      <div className="grid grid-2">
-        <ChartPanel title="Collateral Seized Distribution" badge="30D">
+      {/* Force matching heights + equal 1:1 columns so the donut (with its
+          side legend) and the daily bar chart look like a true pair. */}
+      <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+        <ChartPanel title="Collateral Seized Distribution" badge="30D" height={320}>
           <DonutChart data={donutData} />
         </ChartPanel>
-        <ChartPanel title="Daily Collateral Seized" badge="30D">
+        <ChartPanel title="Daily Collateral Seized" badge="30D" height={320}>
           <SimpleBarChart data={barData} color="var(--red)" />
         </ChartPanel>
       </div>

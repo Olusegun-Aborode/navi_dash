@@ -107,25 +107,30 @@ export default function OverviewPage() {
         </div>
       </Panel>
 
-      <ChartPanel
-        title="Total Supply by Asset"
-        badge={`${days}D`}
-        timeRanges={[7, 30, 90]}
-        selectedRange={days}
-        onRangeChange={setDays}
-      >
-        <StackedAreaChart data={buildChartData('supply')} symbols={symbols} valueKey="supply" />
-      </ChartPanel>
+      {/* Supply and Borrow share the same 7/30/90 toggle so they read as a pair.
+          On narrow screens they collapse to a single column via the `.grid-2`
+          media query in globals.css. */}
+      <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
+        <ChartPanel
+          title="Total Supply by Asset"
+          badge={`${days}D`}
+          timeRanges={[7, 30, 90]}
+          selectedRange={days}
+          onRangeChange={setDays}
+        >
+          <StackedAreaChart data={buildChartData('supply')} symbols={symbols} valueKey="supply" />
+        </ChartPanel>
 
-      <ChartPanel
-        title="Total Borrows by Asset"
-        badge={`${days}D`}
-        timeRanges={[7, 30, 90]}
-        selectedRange={days}
-        onRangeChange={setDays}
-      >
-        <StackedAreaChart data={buildChartData('borrows')} symbols={symbols} valueKey="borrows" />
-      </ChartPanel>
+        <ChartPanel
+          title="Total Borrows by Asset"
+          badge={`${days}D`}
+          timeRanges={[7, 30, 90]}
+          selectedRange={days}
+          onRangeChange={setDays}
+        >
+          <StackedAreaChart data={buildChartData('borrows')} symbols={symbols} valueKey="borrows" />
+        </ChartPanel>
+      </div>
 
       <ChartPanel
         title="TVL by Asset"
