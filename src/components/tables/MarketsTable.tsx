@@ -60,7 +60,19 @@ export default function MarketsTable({ data, protocolSlug }: MarketsTableProps) 
 
   return (
     <div className="overflow-x-auto">
-      <table className="data-table">
+      {/* Explicit column widths + fixed layout so the browser doesn't dump
+          slack width into an arbitrary column. Columns are listed in the
+          same order as `columns` above. */}
+      <table className="data-table" style={{ tableLayout: 'fixed', minWidth: 960 }}>
+        <colgroup>
+          <col style={{ width: '10%' }} /> {/* Market */}
+          <col style={{ width: '16%' }} /> {/* Total Supply */}
+          <col style={{ width: '16%' }} /> {/* Total Borrows */}
+          <col style={{ width: '16%' }} /> {/* Liquidity */}
+          <col style={{ width: '12%' }} /> {/* Supply APY */}
+          <col style={{ width: '12%' }} /> {/* Borrow APY */}
+          <col style={{ width: '18%' }} /> {/* Utilization (bar + %) */}
+        </colgroup>
         <thead>
           <tr>
             {columns.map((col) => {

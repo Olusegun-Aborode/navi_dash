@@ -94,10 +94,23 @@ export default function WalletsTable({
   return (
     <>
       <div className="overflow-x-auto">
-        <table className="data-table">
+        {/* Fixed layout + explicit widths so columns don't jump around when
+            addresses / asset chips vary in length. Expanded breakdown rows
+            use colSpan={6}, which spans cols 2-7 — their combined width is
+            still exactly 97% thanks to the layout mode. */}
+        <table className="data-table" style={{ tableLayout: 'fixed', minWidth: 1000 }}>
+          <colgroup>
+            <col style={{ width: '3%' }} />  {/* expand chevron */}
+            <col style={{ width: '14%' }} /> {/* Wallet */}
+            <col style={{ width: '13%' }} /> {/* Collateral USD */}
+            <col style={{ width: '18%' }} /> {/* Collateral assets */}
+            <col style={{ width: '13%' }} /> {/* Borrows USD */}
+            <col style={{ width: '18%' }} /> {/* Borrow assets */}
+            <col style={{ width: '21%' }} /> {/* Health Factor */}
+          </colgroup>
           <thead>
             <tr>
-              <th style={{ width: 28 }} aria-label="expand" />
+              <th aria-label="expand" />
               <th>Wallet</th>
               <th className="text-right">Collateral</th>
               <th>Assets</th>
