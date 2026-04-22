@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import Panel from '@/components/ui/Panel';
+import Metric from '@/components/ui/Metric';
 import PageHeader from '@/components/ui/PageHeader';
 import Loading from '@/components/ui/Loading';
 import ErrorMsg from '@/components/ui/ErrorMsg';
@@ -13,6 +14,7 @@ import WalletsTable, {
   type WalletSortField,
   type SortDir,
 } from '@/components/tables/WalletsTable';
+import { formatUsd } from '@/lib/utils';
 
 function buildFilterFields(symbols: string[]) {
   return [
@@ -30,10 +32,16 @@ interface RiskCounts {
   total: number;
 }
 
+interface Totals {
+  supplyUsd: number;
+  borrowUsd: number;
+}
+
 interface WalletsResponse {
   wallets: WalletRow[];
   total: number;
   riskCounts?: RiskCounts;
+  totals?: Totals;
 }
 
 // Sensible initial sort direction per column. HF ascending surfaces the
@@ -78,10 +86,8 @@ export default function WalletsPage() {
 
   function handleSortChange(field: WalletSortField) {
     if (field === sortBy) {
-      // Same column: flip direction.
       setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
     } else {
-      // New column: use the sensible default for that field.
       setSortBy(field);
       setSortDir(DEFAULT_DIR[field]);
     }
@@ -90,6 +96,8 @@ export default function WalletsPage() {
 
   const symbols = symbolsQuery.data?.symbols ?? [];
   const riskCounts = walletsQuery.data?.riskCounts;
+  const totals = walletsQuery.data?.totals;
+  const totalWallets = walletsQuery.data?.total ?? 0;
 
   return (
     <div className="flex flex-col gap-4">
@@ -97,6 +105,29 @@ export default function WalletsPage() {
         title="Wallet Explorer"
         subtitle="Live health-factor watchlist across tracked borrowers."
       />
+
+      {/* Summary strip — reflects the current filter set, just like the
+          table below it. Empty / loading state renders em-dashes to keep
+          row heights stable. */}
+      <Panel title="Wallet Summary" flush>
+        <div className="grid grid-3">
+          <Metric
+            label="Wallets"
+            value={totalWallets.toLocaleString()}
+            tooltip="Count of tracked borrowers matching the current filters."
+          />
+          <Metric
+            label="Total Supplied"
+            value={totals ? formatUsd(totals.supplyUsd, true) : '—'}
+            tooltip="Sum of collateral USD across all matching wallets."
+          />
+          <Metric
+            label="Total Borrowed"
+            value={totals ? formatUsd(totals.borrowUsd, true) : '—'}
+            tooltip="Sum of debt USD across all matching wallets."
+          />
+        </div>
+      </Panel>
 
       <Panel title="Filters" badge={`${symbols.length} ASSETS`} flush>
         <div style={{ padding: 'var(--panel-pad)' }}>
@@ -131,9 +162,8 @@ export default function WalletsPage() {
 }
 
 /**
- * Risk summary rendered in the Borrowers panel header. Shows danger (HF <
- * 1.2) and warning (HF 1.2–1.5) counts in their band colors, then the
- * unfiltered total. Falls back to just the total while loading.
+ * Risk summary rendered in the Borrowers panel header. Danger (HF < 1.2)
+ * and warning (HF 1.2–1.5) counts in their band colors, then the total.
  */
 function RiskBadge({ counts }: { counts?: RiskCounts }) {
   if (!counts) return <span>LOADING…</span>;

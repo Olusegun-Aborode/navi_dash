@@ -15,9 +15,12 @@ type SortDir = 'asc' | 'desc';
  * GET /api/[protocol]/wallets?page=1&limit=25&search=0x...&minHf=0
  *     &collateral=SUI&borrow=USDC&sortBy=healthFactor&sortDir=asc
  *
- * Response includes `riskCounts` — the count of wallets in each HF band
- * across the *filtered* set (not just the current page). The client panel
- * header uses this for its "N critical · N warning · N total" summary.
+ * Response includes:
+ *   - `riskCounts` — count of wallets per HF band across the *filtered*
+ *     set (not just the current page). Used in the panel header for the
+ *     "N critical · N warning · N total" summary.
+ *   - `totals` — { supplyUsd, borrowUsd } aggregates across the filtered
+ *     set. Used in the page-level KPI strip above the table.
  */
 export async function GET(
   req: Request,
@@ -53,6 +56,7 @@ export async function GET(
       page,
       limit,
       riskCounts: { danger: 0, warning: 0, safe: 0, total: 0 },
+      totals: { supplyUsd: 0, borrowUsd: 0 },
       message: 'No database configured',
     });
   }
@@ -68,7 +72,7 @@ export async function GET(
     if (collateral) where.collateralAssets = { contains: collateral };
     if (borrow) where.borrowAssets = { contains: borrow };
 
-    const [wallets, total, danger, warning] = await Promise.all([
+    const [wallets, total, danger, warning, agg] = await Promise.all([
       db.walletPosition.findMany({
         where,
         orderBy: { [sortBy]: sortDir },
@@ -86,6 +90,12 @@ export async function GET(
       db.walletPosition.count({
         where: { ...where, healthFactor: { gte: 1.2, lt: 1.5 } },
       }),
+      // Prisma aggregate: SUM across the filtered set. Null when the set
+      // is empty, hence the `?? 0` fallbacks on read.
+      db.walletPosition.aggregate({
+        where,
+        _sum: { collateralUsd: true, borrowUsd: true },
+      }),
     ]);
 
     const safe = Math.max(0, total - danger - warning);
@@ -96,6 +106,10 @@ export async function GET(
       page,
       limit,
       riskCounts: { danger, warning, safe, total },
+      totals: {
+        supplyUsd: agg._sum.collateralUsd ?? 0,
+        borrowUsd: agg._sum.borrowUsd ?? 0,
+      },
     });
   } catch (error) {
     console.error(`/api/${slug}/wallets error:`, error);
@@ -106,6 +120,7 @@ export async function GET(
         page,
         limit,
         riskCounts: { danger: 0, warning: 0, safe: 0, total: 0 },
+        totals: { supplyUsd: 0, borrowUsd: 0 },
         error: 'Query failed',
       },
       { status: 500 }

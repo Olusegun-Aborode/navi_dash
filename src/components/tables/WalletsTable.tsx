@@ -1,9 +1,6 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
-import { ChevronDown, ChevronRight, ChevronUp, ArrowUpDown } from 'lucide-react';
+import { ChevronDown, ChevronUp, ArrowUpDown, ExternalLink } from 'lucide-react';
 import { formatUsd, truncateAddress, formatNumber, getAssetColor } from '@/lib/utils';
 import { healthFactorColor, healthFactorLabel } from '@/lib/constants';
 import InfoTooltip from '@/components/InfoTooltip';
@@ -31,14 +28,6 @@ interface WalletsTableProps {
   onSortChange: (field: WalletSortField) => void;
 }
 
-interface WalletDetail {
-  address: string;
-  healthFactor: number;
-  collateralUsd: number;
-  borrowUsd: number;
-  perAsset: Array<{ symbol: string; supplyUsd: number; borrowUsd: number }>;
-}
-
 function parseAssets(json: string): string[] {
   try {
     const parsed = JSON.parse(json);
@@ -57,33 +46,85 @@ function parseAssets(json: string): string[] {
   }
 }
 
-function AssetChips({ json }: { json: string }) {
-  const symbols = parseAssets(json);
-  if (symbols.length === 0) return <span style={{ color: 'var(--fg-muted)' }}>—</span>;
+/**
+ * Compact single-line positions display: collateral dots on the left, a →
+ * separator, debt dots on the right. Hover shows the actual symbol list.
+ * Rows stay the same height regardless of asset count because the dot
+ * strip is capped; anything over MAX shows as `+N`.
+ */
+const MAX_DOTS = 4;
+
+function PositionsCell({
+  collateralJson,
+  borrowJson,
+}: {
+  collateralJson: string;
+  borrowJson: string;
+}) {
+  const c = parseAssets(collateralJson);
+  const d = parseAssets(borrowJson);
+  const tooltip =
+    `Collateral: ${c.length ? c.join(', ') : '—'}\n` +
+    `Debt: ${d.length ? d.join(', ') : '—'}`;
+
   return (
-    <div className="flex flex-wrap gap-1">
-      {symbols.map((a) => (
+    <span
+      title={tooltip}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      <DotStrip symbols={c} />
+      <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
+        →
+      </span>
+      <DotStrip symbols={d} />
+    </span>
+  );
+}
+
+function DotStrip({ symbols }: { symbols: string[] }) {
+  if (symbols.length === 0) {
+    return <span style={{ color: 'var(--fg-dim)', fontSize: 11 }}>—</span>;
+  }
+  const shown = symbols.slice(0, MAX_DOTS);
+  const rest = symbols.length - shown.length;
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+      {shown.map((s) => (
         <span
-          key={a}
-          className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px]"
+          key={s}
           style={{
-            background: 'var(--bg-2)',
-            border: '1px solid var(--border)',
-            color: 'var(--fg)',
+            display: 'inline-block',
+            width: 8,
+            height: 8,
+            borderRadius: '50%',
+            background: getAssetColor(s),
+          }}
+        />
+      ))}
+      {rest > 0 && (
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 10,
+            color: 'var(--fg-muted)',
+            marginLeft: 2,
           }}
         >
-          <span className="token-dot" style={{ backgroundColor: getAssetColor(a), margin: 0 }} />
-          {a}
+          +{rest}
         </span>
-      ))}
-    </div>
+      )}
+    </span>
   );
 }
 
 /**
- * Header cell with built-in sort affordance. Active column shows its
- * direction; inactive columns show a dim up/down glyph so it's obvious
- * every column is sortable.
+ * Header with built-in sort affordance. Active column shows its direction;
+ * inactive columns show a dim up/down glyph so the sortability is obvious.
  */
 function SortableHeader({
   field,
@@ -141,45 +182,29 @@ export default function WalletsTable({
   sortDir,
   onSortChange,
 }: WalletsTableProps) {
-  const params = useParams<{ protocol: string }>();
-  const protocol = params?.protocol ?? 'navi';
-  const [expanded, setExpanded] = useState<string | null>(null);
-
   const totalPages = Math.max(1, Math.ceil(total / limit));
-
-  function toggle(address: string) {
-    setExpanded((cur) => (cur === address ? null : address));
-  }
 
   return (
     <>
       <div className="overflow-x-auto">
-        {/* 6 content columns + expand chevron. Percentages fill the panel
-            (no right gap) and grow proportionally on wider screens. */}
+        {/* One row = one line. Every cell content is single-line so row
+            heights stay uniform regardless of how many assets a wallet holds.
+            6 columns sum to 100%; width:100% fills the panel. */}
         <table
           className="data-table"
-          style={{ tableLayout: 'fixed', width: '100%', minWidth: 1040 }}
+          style={{ tableLayout: 'fixed', width: '100%', minWidth: 960 }}
         >
           <colgroup>
-            <col style={{ width: '4%' }} />  {/* expand chevron */}
-            <col style={{ width: '14%' }} /> {/* Wallet */}
-            <col style={{ width: '18%' }} /> {/* Health Factor (now column 2) */}
-            <col style={{ width: '27%' }} /> {/* Collateral (USD + chips) */}
-            <col style={{ width: '27%' }} /> {/* Borrows (USD + chips) */}
-            <col style={{ width: '10%' }} /> {/* LTV */}
+            <col style={{ width: '16%' }} /> {/* Wallet */}
+            <col style={{ width: '17%' }} /> {/* Collateral */}
+            <col style={{ width: '17%' }} /> {/* Debt */}
+            <col style={{ width: '20%' }} /> {/* Health Factor */}
+            <col style={{ width: '16%' }} /> {/* Positions */}
+            <col style={{ width: '14%' }} /> {/* LTV */}
           </colgroup>
           <thead>
             <tr>
-              <th aria-label="expand" />
               <th>Wallet</th>
-              <SortableHeader
-                field="healthFactor"
-                label="Health Factor"
-                tooltip="Weighted collateral / total borrows — below 1.0 = liquidatable"
-                sortBy={sortBy}
-                sortDir={sortDir}
-                onSortChange={onSortChange}
-              />
               <SortableHeader
                 field="collateralUsd"
                 label="Collateral"
@@ -190,15 +215,27 @@ export default function WalletsTable({
               />
               <SortableHeader
                 field="borrowUsd"
-                label="Borrows"
+                label="Debt"
                 align="right"
                 sortBy={sortBy}
                 sortDir={sortDir}
                 onSortChange={onSortChange}
               />
+              <SortableHeader
+                field="healthFactor"
+                label="Health Factor"
+                tooltip="Weighted collateral / total borrows — below 1.0 = liquidatable"
+                sortBy={sortBy}
+                sortDir={sortDir}
+                onSortChange={onSortChange}
+              />
+              <th>
+                Positions{' '}
+                <InfoTooltip text="Collateral assets → debt assets. Hover for full list." />
+              </th>
               <th
                 className="text-right"
-                title="Loan-to-Value — raw borrows / collateral. A different view on leverage than HF (which weights collateral by asset-specific LTV caps)."
+                title="Loan-to-Value — raw borrows / collateral. A different view on leverage than HF (which weights by per-asset LTV caps)."
               >
                 LTV
               </th>
@@ -219,17 +256,64 @@ export default function WalletsTable({
               data.map((row) => {
                 const hfColor = healthFactorColor(row.healthFactor);
                 const hfLabel = healthFactorLabel(row.healthFactor);
-                const isOpen = expanded === row.address;
+                const ltv =
+                  row.collateralUsd > 0 ? (row.borrowUsd / row.collateralUsd) * 100 : null;
+                // 2px left border in the HF band color turns the sortable
+                // table into a heatmap — critical rows stay visible as you
+                // scroll.
+                const tint: React.CSSProperties = { borderLeft: `2px solid ${hfColor}` };
                 return (
-                  <WalletGroup
-                    key={row.address}
-                    row={row}
-                    hfColor={hfColor}
-                    hfLabel={hfLabel}
-                    isOpen={isOpen}
-                    onToggle={() => toggle(row.address)}
-                    protocol={protocol}
-                  />
+                  <tr key={row.address}>
+                    <td className="text-xs" style={tint}>
+                      <a
+                        href={`https://suiscan.xyz/mainnet/account/${row.address}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          color: 'var(--fg)',
+                        }}
+                        title="Open in Suiscan"
+                      >
+                        {truncateAddress(row.address)}
+                        <ExternalLink
+                          size={10}
+                          style={{ color: 'var(--fg-dim)' }}
+                          aria-hidden
+                        />
+                      </a>
+                    </td>
+                    <td className="text-right">{formatUsd(row.collateralUsd, true)}</td>
+                    <td className="text-right">{formatUsd(row.borrowUsd, true)}</td>
+                    <td>
+                      <span
+                        className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] uppercase tracking-[0.05em]"
+                        style={{
+                          color: hfColor,
+                          background: `${hfColor}15`,
+                          border: `1px solid ${hfColor}40`,
+                        }}
+                      >
+                        <span
+                          className="inline-block h-1.5 w-1.5 rounded-full"
+                          style={{ background: hfColor }}
+                        />
+                        {row.healthFactor >= 100 ? '99+' : formatNumber(row.healthFactor, 2)}
+                        <span className="opacity-70">{hfLabel}</span>
+                      </span>
+                    </td>
+                    <td>
+                      <PositionsCell
+                        collateralJson={row.collateralAssets}
+                        borrowJson={row.borrowAssets}
+                      />
+                    </td>
+                    <td className="text-right">
+                      <LtvCell ltv={ltv} />
+                    </td>
+                  </tr>
                 );
               })
             )}
@@ -267,102 +351,27 @@ export default function WalletsTable({
   );
 }
 
-function WalletGroup({
-  row,
-  hfColor,
-  hfLabel,
-  isOpen,
-  onToggle,
-  protocol,
-}: {
-  row: WalletRow;
-  hfColor: string;
-  hfLabel: string;
-  isOpen: boolean;
-  onToggle: () => void;
-  protocol: string;
-}) {
-  const ltv = row.collateralUsd > 0 ? (row.borrowUsd / row.collateralUsd) * 100 : null;
-
-  // Left border uses the HF band color — turns a sortable table into a
-  // risk heatmap you can scan vertically even while scrolling.
-  const tintStyle: React.CSSProperties = {
-    borderLeft: `2px solid ${hfColor}`,
-  };
-
-  return (
-    <>
-      <tr onClick={onToggle} style={{ cursor: 'pointer' }} aria-expanded={isOpen}>
-        <td style={{ color: 'var(--fg-muted)', ...tintStyle }}>
-          {isOpen ? (
-            <ChevronDown className="h-3 w-3" />
-          ) : (
-            <ChevronRight className="h-3 w-3" />
-          )}
-        </td>
-        <td className="text-xs">{truncateAddress(row.address)}</td>
-        <td>
-          <span
-            className="inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[10px] uppercase tracking-[0.05em]"
-            style={{
-              color: hfColor,
-              background: `${hfColor}15`,
-              border: `1px solid ${hfColor}40`,
-            }}
-          >
-            <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: hfColor }} />
-            {row.healthFactor >= 100 ? '99+' : formatNumber(row.healthFactor, 2)}
-            <span className="opacity-70">{hfLabel}</span>
-          </span>
-        </td>
-        <td className="text-right">
-          <div>{formatUsd(row.collateralUsd, true)}</div>
-          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
-            <AssetChips json={row.collateralAssets} />
-          </div>
-        </td>
-        <td className="text-right">
-          <div>{formatUsd(row.borrowUsd, true)}</div>
-          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'flex-end' }}>
-            <AssetChips json={row.borrowAssets} />
-          </div>
-        </td>
-        <td className="text-right">
-          <LtvCell ltv={ltv} />
-        </td>
-      </tr>
-      {isOpen && (
-        <tr style={{ background: 'var(--surface-2)' }}>
-          <td style={tintStyle} />
-          <td colSpan={5} style={{ padding: '14px 14px 18px' }}>
-            <WalletBreakdown
-              address={row.address}
-              protocol={protocol}
-              collateralUsd={row.collateralUsd}
-              borrowUsd={row.borrowUsd}
-            />
-          </td>
-        </tr>
-      )}
-    </>
-  );
-}
-
 /**
- * LTV = borrows / collateral (raw, unweighted). Different from HF which
- * applies per-asset LTV caps — so a wallet with 100% LTV here might have
- * HF 1.2 depending on its collateral mix. Shown as a percent + thin bar.
+ * LTV = borrows / collateral (raw, unweighted). Different from HF, which
+ * applies per-asset LTV caps. Shown as percent + thin bar.
  */
 function LtvCell({ ltv }: { ltv: number | null }) {
   if (ltv === null) {
     return <span style={{ color: 'var(--fg-muted)' }}>—</span>;
   }
-  // Color the bar by how close to 100%: green (< 50), yellow (< 75), red (>= 75).
   const barColor =
     ltv < 50 ? 'var(--green)' : ltv < 75 ? 'var(--yellow)' : 'var(--red)';
   const pct = Math.min(ltv, 100);
   return (
-    <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, minWidth: 70 }}>
+    <div
+      style={{
+        display: 'inline-flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        gap: 3,
+        minWidth: 70,
+      }}
+    >
       <span style={{ fontVariantNumeric: 'tabular-nums' }}>{ltv.toFixed(1)}%</span>
       <div
         style={{
@@ -382,175 +391,6 @@ function LtvCell({ ltv }: { ltv: number | null }) {
           }}
         />
       </div>
-    </div>
-  );
-}
-
-/**
- * Lazily fetched on row expand. Returns the per-asset collateral/borrow
- * breakdown so operators can see, e.g., that $552 of collateral is $491
- * vSUI + $61 USDC.
- */
-function WalletBreakdown({
-  address,
-  protocol,
-  collateralUsd,
-  borrowUsd,
-}: {
-  address: string;
-  protocol: string;
-  collateralUsd: number;
-  borrowUsd: number;
-}) {
-  const { data, isPending, isError } = useQuery<WalletDetail>({
-    queryKey: ['walletDetail', protocol, address],
-    queryFn: () => fetch(`/api/${protocol}/wallets/${address}`).then((r) => r.json()),
-    staleTime: 60 * 1000,
-  });
-
-  if (isPending) {
-    return (
-      <div style={{ fontSize: 11, color: 'var(--fg-muted)', fontFamily: 'var(--font-mono)' }}>
-        Loading on-chain breakdown…
-      </div>
-    );
-  }
-
-  if (isError || !data || !Array.isArray(data.perAsset)) {
-    return (
-      <div style={{ fontSize: 11, color: 'var(--red)', fontFamily: 'var(--font-mono)' }}>
-        [ERR] Failed to read wallet state from chain.
-      </div>
-    );
-  }
-
-  const perAsset = data.perAsset ?? [];
-  const collateralRows = perAsset
-    .filter((a) => a.supplyUsd > 0)
-    .sort((a, b) => b.supplyUsd - a.supplyUsd);
-  const borrowRows = perAsset
-    .filter((a) => a.borrowUsd > 0)
-    .sort((a, b) => b.borrowUsd - a.borrowUsd);
-
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-      <BreakdownColumn
-        title="Collateral"
-        total={data.collateralUsd || collateralUsd}
-        rows={collateralRows.map((r) => ({ symbol: r.symbol, usd: r.supplyUsd }))}
-      />
-      <BreakdownColumn
-        title="Borrows"
-        total={data.borrowUsd || borrowUsd}
-        rows={borrowRows.map((r) => ({ symbol: r.symbol, usd: r.borrowUsd }))}
-      />
-    </div>
-  );
-}
-
-function BreakdownColumn({
-  title,
-  total,
-  rows,
-}: {
-  title: string;
-  total: number;
-  rows: Array<{ symbol: string; usd: number }>;
-}) {
-  return (
-    <div>
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          marginBottom: 10,
-        }}
-      >
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10,
-            color: 'var(--fg-muted)',
-            textTransform: 'uppercase',
-            letterSpacing: '0.1em',
-          }}
-        >
-          {title}
-        </span>
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--fg)',
-            fontVariantNumeric: 'tabular-nums',
-          }}
-        >
-          {formatUsd(total, true)}
-        </span>
-      </div>
-
-      {rows.length === 0 ? (
-        <div
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            color: 'var(--fg-muted)',
-          }}
-        >
-          No positions.
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {rows.map((r) => {
-            const pct = total > 0 ? (r.usd / total) * 100 : 0;
-            return (
-              <div key={r.symbol}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'baseline',
-                    justifyContent: 'space-between',
-                    fontSize: 11,
-                    fontFamily: 'var(--font-mono)',
-                    marginBottom: 3,
-                  }}
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                    <span
-                      className="token-dot"
-                      style={{ background: getAssetColor(r.symbol), margin: 0 }}
-                    />
-                    <span style={{ color: 'var(--fg)', fontWeight: 500 }}>{r.symbol}</span>
-                  </span>
-                  <span style={{ color: 'var(--fg-muted)', fontVariantNumeric: 'tabular-nums' }}>
-                    {formatUsd(r.usd, true)}{' '}
-                    <span style={{ color: 'var(--fg-dim)' }}>({pct.toFixed(1)}%)</span>
-                  </span>
-                </div>
-                <div
-                  style={{
-                    height: 4,
-                    borderRadius: 2,
-                    background: 'var(--bg-2)',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      height: '100%',
-                      width: `${Math.max(pct, 0.5)}%`,
-                      background: getAssetColor(r.symbol),
-                      transition: 'width 0.3s ease',
-                    }}
-                  />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
