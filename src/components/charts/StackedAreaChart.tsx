@@ -8,7 +8,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts';
 import { formatUsd, formatDate, getAssetColor } from '@/lib/utils';
 
@@ -27,6 +26,14 @@ interface StackedAreaChartProps {
   data: Array<Record<string, unknown>>;
   symbols: string[];
   valueKey: string;
+  /**
+   * Optional filter — when provided, only these symbols render. `undefined`
+   * (the default) means "render everything in `symbols`". The parent owns
+   * this state; this chart is deliberately legend-less so the selection
+   * lives in the outer AssetFilter dropdown instead of an overflowing row
+   * of 35+ checkboxes under the chart.
+   */
+  activeSymbols?: string[];
 }
 
 const TOP_N = 10;
@@ -112,7 +119,14 @@ export default function StackedAreaChart({
   data,
   symbols,
   valueKey,
+  activeSymbols,
 }: StackedAreaChartProps) {
+  // Preserve the caller-provided symbol order so stacking stays stable
+  // even as the user toggles assets on and off.
+  const visibleSymbols = activeSymbols
+    ? symbols.filter((s) => activeSymbols.includes(s))
+    : symbols;
+
   if (data.length === 0) {
     return (
       <div
@@ -161,8 +175,24 @@ export default function StackedAreaChart({
           width={70}
         />
         <Tooltip content={<CompactTooltip />} />
-        <Legend wrapperStyle={{ fontSize: 10, color: 'var(--text-muted)' }} />
-        {symbols.map((symbol) => (
+        {/* Legend removed — a 30+ asset list at the chart bottom eats more
+            vertical space than the chart itself. The outer AssetFilter
+            dropdown carries the same info and lets users focus on a
+            subset. */}
+        {visibleSymbols.length === 0 && (
+          <text
+            x="50%"
+            y="50%"
+            textAnchor="middle"
+            dominantBaseline="central"
+            fill="var(--fg-muted)"
+            fontSize={12}
+            fontFamily="var(--font-mono)"
+          >
+            No assets selected — open the Assets dropdown to pick some
+          </text>
+        )}
+        {visibleSymbols.map((symbol) => (
           <Area
             key={symbol}
             type="monotone"

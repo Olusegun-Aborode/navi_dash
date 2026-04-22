@@ -9,6 +9,7 @@ import ChartPanel from '@/components/ui/ChartPanel';
 import PageHeader from '@/components/ui/PageHeader';
 import Loading from '@/components/ui/Loading';
 import ErrorMsg from '@/components/ui/ErrorMsg';
+import AssetFilter from '@/components/ui/AssetFilter';
 import StackedAreaChart from '@/components/charts/StackedAreaChart';
 import { formatUsd } from '@/lib/utils';
 
@@ -34,6 +35,11 @@ interface HistoryRow {
 export default function OverviewPage() {
   const { protocol } = useParams<{ protocol: string }>();
   const [days, setDays] = useState(30);
+  // `undefined` = "all assets"; keeps the filter component from needing the
+  // symbol list in its empty state. Shared across the three by-asset
+  // charts below — toggling an asset affects Supply / Borrows / TVL
+  // identically.
+  const [activeSymbols, setActiveSymbols] = useState<string[] | undefined>(undefined);
 
   const poolsQuery = useQuery<PoolsResponse>({
     queryKey: ['pools', protocol],
@@ -107,9 +113,9 @@ export default function OverviewPage() {
         </div>
       </Panel>
 
-      {/* Supply and Borrow share the same 7/30/90 toggle so they read as a pair.
-          On narrow screens they collapse to a single column via the `.grid-2`
-          media query in globals.css. */}
+      {/* Supply and Borrow share the same 7/30/90 toggle + asset filter so
+          they read as a pair. On narrow screens they collapse to a single
+          column via the `.grid-2` media query in globals.css. */}
       <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
         <ChartPanel
           title="Total Supply by Asset"
@@ -117,8 +123,20 @@ export default function OverviewPage() {
           timeRanges={[7, 30, 90]}
           selectedRange={days}
           onRangeChange={setDays}
+          actions={
+            <AssetFilter
+              symbols={symbols}
+              selected={activeSymbols}
+              onChange={setActiveSymbols}
+            />
+          }
         >
-          <StackedAreaChart data={buildChartData('supply')} symbols={symbols} valueKey="supply" />
+          <StackedAreaChart
+            data={buildChartData('supply')}
+            symbols={symbols}
+            valueKey="supply"
+            activeSymbols={activeSymbols}
+          />
         </ChartPanel>
 
         <ChartPanel
@@ -127,8 +145,20 @@ export default function OverviewPage() {
           timeRanges={[7, 30, 90]}
           selectedRange={days}
           onRangeChange={setDays}
+          actions={
+            <AssetFilter
+              symbols={symbols}
+              selected={activeSymbols}
+              onChange={setActiveSymbols}
+            />
+          }
         >
-          <StackedAreaChart data={buildChartData('borrows')} symbols={symbols} valueKey="borrows" />
+          <StackedAreaChart
+            data={buildChartData('borrows')}
+            symbols={symbols}
+            valueKey="borrows"
+            activeSymbols={activeSymbols}
+          />
         </ChartPanel>
       </div>
 
@@ -138,8 +168,20 @@ export default function OverviewPage() {
         timeRanges={[7, 30, 90]}
         selectedRange={days}
         onRangeChange={setDays}
+        actions={
+          <AssetFilter
+            symbols={symbols}
+            selected={activeSymbols}
+            onChange={setActiveSymbols}
+          />
+        }
       >
-        <StackedAreaChart data={buildChartData('tvl')} symbols={symbols} valueKey="tvl" />
+        <StackedAreaChart
+          data={buildChartData('tvl')}
+          symbols={symbols}
+          valueKey="tvl"
+          activeSymbols={activeSymbols}
+        />
       </ChartPanel>
     </div>
   );
