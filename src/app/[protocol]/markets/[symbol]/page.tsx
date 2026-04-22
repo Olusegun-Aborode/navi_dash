@@ -206,10 +206,10 @@ export default function MarketDetailPage({
       )}
 
       <div className="grid grid-2" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>
-        <ChartPanel title={`Borrowed Against ${upperSymbol}`} badge="ALL">
+        <ChartPanel title={`Debt backed by ${upperSymbol}`} badge="ALL">
           <DonutChart data={borrowedAgainst} />
         </ChartPanel>
-        <ChartPanel title={`Collateral for ${upperSymbol} Borrows`} badge="ALL">
+        <ChartPanel title={`Collateral backing ${upperSymbol} debt`} badge="ALL">
           <DonutChart data={collateralUsed} />
         </ChartPanel>
       </div>
