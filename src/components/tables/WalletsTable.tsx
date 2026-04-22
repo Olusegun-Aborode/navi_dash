@@ -1,9 +1,8 @@
 'use client';
 
 import { ChevronDown, ChevronUp, ArrowUpDown, ExternalLink } from 'lucide-react';
-import { formatUsd, truncateAddress, formatNumber, getAssetColor } from '@/lib/utils';
+import { formatUsd, truncateAddress, formatNumber } from '@/lib/utils';
 import { healthFactorColor, healthFactorLabel } from '@/lib/constants';
-import InfoTooltip from '@/components/InfoTooltip';
 
 export interface WalletRow {
   address: string;
@@ -47,13 +46,11 @@ function parseAssets(json: string): string[] {
 }
 
 /**
- * Compact single-line positions display: collateral dots on the left, a →
- * separator, debt dots on the right. Hover shows the actual symbol list.
- * Rows stay the same height regardless of asset count because the dot
- * strip is capped; anything over MAX shows as `+N`.
+ * Positions cell — total count of distinct asset positions (collateral +
+ * debt). Single number so rows stay uniform height; native title attribute
+ * carries the breakdown so hovering always works regardless of the
+ * table's overflow-x wrapper.
  */
-const MAX_DOTS = 4;
-
 function PositionsCell({
   collateralJson,
   borrowJson,
@@ -63,61 +60,16 @@ function PositionsCell({
 }) {
   const c = parseAssets(collateralJson);
   const d = parseAssets(borrowJson);
+  const total = c.length + d.length;
   const tooltip =
-    `Collateral: ${c.length ? c.join(', ') : '—'}\n` +
-    `Debt: ${d.length ? d.join(', ') : '—'}`;
-
+    `${c.length} collateral${c.length === 1 ? '' : 's'}${c.length ? ' (' + c.join(', ') + ')' : ''}\n` +
+    `${d.length} debt${d.length === 1 ? '' : 's'}${d.length ? ' (' + d.join(', ') + ')' : ''}`;
   return (
     <span
       title={tooltip}
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: 6,
-        whiteSpace: 'nowrap',
-      }}
+      style={{ fontVariantNumeric: 'tabular-nums', cursor: 'help' }}
     >
-      <DotStrip symbols={c} />
-      <span style={{ color: 'var(--fg-dim)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>
-        →
-      </span>
-      <DotStrip symbols={d} />
-    </span>
-  );
-}
-
-function DotStrip({ symbols }: { symbols: string[] }) {
-  if (symbols.length === 0) {
-    return <span style={{ color: 'var(--fg-dim)', fontSize: 11 }}>—</span>;
-  }
-  const shown = symbols.slice(0, MAX_DOTS);
-  const rest = symbols.length - shown.length;
-  return (
-    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
-      {shown.map((s) => (
-        <span
-          key={s}
-          style={{
-            display: 'inline-block',
-            width: 8,
-            height: 8,
-            borderRadius: '50%',
-            background: getAssetColor(s),
-          }}
-        />
-      ))}
-      {rest > 0 && (
-        <span
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10,
-            color: 'var(--fg-muted)',
-            marginLeft: 2,
-          }}
-        >
-          +{rest}
-        </span>
-      )}
+      {total}
     </span>
   );
 }
@@ -125,6 +77,10 @@ function DotStrip({ symbols }: { symbols: string[] }) {
 /**
  * Header with built-in sort affordance. Active column shows its direction;
  * inactive columns show a dim up/down glyph so the sortability is obvious.
+ *
+ * Header `tooltip` uses the browser's native `title` attribute — styled
+ * CSS popups get clipped by the <div overflow-x-auto> wrapper around the
+ * table, and a header isn't the place to fight that.
  */
 function SortableHeader({
   field,
@@ -158,14 +114,15 @@ function SortableHeader({
       className={align === 'right' ? 'text-right' : ''}
       onClick={() => onSortChange(field)}
       style={{ cursor: 'pointer', userSelect: 'none' }}
+      title={tooltip}
     >
       {align === 'right' ? (
         <>
-          {icon} {tooltip && <InfoTooltip text={tooltip} />} {label}
+          {icon} {label}
         </>
       ) : (
         <>
-          {label} {tooltip && <InfoTooltip text={tooltip} />} {icon}
+          {label} {icon}
         </>
       )}
     </th>
@@ -229,9 +186,11 @@ export default function WalletsTable({
                 sortDir={sortDir}
                 onSortChange={onSortChange}
               />
-              <th>
-                Positions{' '}
-                <InfoTooltip text="Collateral assets → debt assets. Hover for full list." />
+              <th
+                className="text-right"
+                title="Total asset positions — collateral + debt. Hover a row's count for the breakdown."
+              >
+                Positions
               </th>
               <th
                 className="text-right"
@@ -304,7 +263,7 @@ export default function WalletsTable({
                         <span className="opacity-70">{hfLabel}</span>
                       </span>
                     </td>
-                    <td>
+                    <td className="text-right">
                       <PositionsCell
                         collateralJson={row.collateralAssets}
                         borrowJson={row.borrowAssets}
