@@ -19,6 +19,13 @@ const OTHER_MIN_PCT = 2;
 const OTHER_LABEL = 'Other';
 const OTHER_COLOR = '#9CA3AF';
 
+// Cap the number of *labeled* slices so two donuts rendered side by side
+// look similarly dense — otherwise the chart with more pairs spreads a
+// thicket of leader-lines across its panel and reads as wider than the
+// other. Unlabeled slices still render as colored wedges and appear in
+// the hover tooltip.
+const MAX_LABELS = 4;
+
 interface SliceLabelProps {
   cx: number;
   cy: number;
@@ -27,6 +34,7 @@ interface SliceLabelProps {
   name: string;
   value: number;
   percent?: number;
+  index: number;
 }
 
 /**
@@ -160,11 +168,18 @@ export default function DonutChart({ data }: DonutChartProps) {
 /**
  * Leader-line label rendered just outside each slice:
  *   `{symbol} ${value} ({pct}%)`
- * Skips slices the layout deems too small to avoid overlap.
+ *
+ * Drops labels for:
+ *   - slices beyond the top MAX_LABELS (rank-capped so two donuts stay
+ *     visually similar regardless of slice count)
+ *   - slices under 3% of total (would overlap neighbors regardless)
+ *
+ * Unlabeled slices still render as colored wedges; tooltip has all data.
  */
 function renderSliceLabel(raw: unknown, total: number): React.ReactElement | null {
   const p = raw as SliceLabelProps;
   if (total <= 0) return null;
+  if (p.index >= MAX_LABELS) return null; // cap labeled slices
   const pct = (p.value / total) * 100;
   if (pct < 3) return null; // tiny slices; tooltip carries the info
 
