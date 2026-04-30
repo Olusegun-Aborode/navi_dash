@@ -10,19 +10,26 @@
  */
 
 import BigNumber from 'bignumber.js';
-import { SuiClient } from '@mysten/sui/client';
+import { SuiJsonRpcClient } from '@mysten/sui/jsonRpc';
 import { getLendingState, getHealthFactor } from '@naviprotocol/lending';
 import { getNaviPoolRegistry } from './poolRegistry';
 
+// v1→v2 migration note: @mysten/sui v2 renamed the user-facing client class
+// from `SuiClient` (in `@mysten/sui/client`) to `SuiJsonRpcClient`
+// (in `@mysten/sui/jsonRpc`). The constructor signature is unchanged.
+// The bump to v2 was driven by @suilend/sdk's peer dependency.
+
 const RPC_URL =
-  process.env.ALCHEMY_SUI_RPC ?? 'https://fullnode.mainnet.sui.io:443';
+  process.env.BLOCKVISION_SUI_RPC ??
+  process.env.ALCHEMY_SUI_RPC ??
+  'https://fullnode.mainnet.sui.io:443';
 
 /** getLendingState returns supply/borrowBalance as strings with 9-decimal precision. */
 const BALANCE_SCALE = new BigNumber(10).pow(9);
 
-let _client: SuiClient | null = null;
-function getClient(): SuiClient {
-  if (!_client) _client = new SuiClient({ url: RPC_URL });
+let _client: SuiJsonRpcClient | null = null;
+function getClient(): SuiJsonRpcClient {
+  if (!_client) _client = new SuiJsonRpcClient({ url: RPC_URL, network: 'mainnet' });
   return _client;
 }
 

@@ -1,69 +1,24 @@
+/**
+ * Generic liquidation indexer cron.
+ *
+ * Routes any /api/<slug>/cron/index-liquidations call to the protocol's
+ * adapter.fetchLiquidations() method. Adapters handle their own event
+ * parsing, pagination, and asset resolution — this route is a thin shell
+ * that handles auth, "where to start" (latest indexed event id), and the
+ * batched DB write.
+ *
+ * Each protocol's events have different field shapes (NAVI uses pool ids;
+ * Suilend uses obligation ids; Scallop has its own event types) so
+ * normalization happens inside each adapter, not here.
+ */
+
 import { NextResponse } from 'next/server';
 import { CRON_SECRET } from '@/lib/constants';
-import { isValidProtocol } from '@/protocols/registry';
-import { NAVI_EVENT_TYPES } from '@/protocols/navi/config';
-import { getNaviPoolRegistry } from '@/protocols/navi/poolRegistry';
-import { parseLiquidationEvent } from '@/protocols/navi/events';
-import { queryEvents, rpc } from '@/lib/rpc';
+import { getProtocol } from '@/protocols/registry';
 import { getDb } from '@/lib/db';
-import BigNumber from 'bignumber.js';
-
-const MIST_PER_SUI = BigInt(1_000_000_000);
-
-interface TxBlockEffects {
-  effects?: {
-    gasUsed?: {
-      computationCost: string;
-      storageCost: string;
-      storageRebate: string;
-    };
-  };
-}
-
-async function fetchGasMist(digest: string): Promise<bigint | null> {
-  try {
-    const tx = await rpc<TxBlockEffects>('sui_getTransactionBlock', [
-      digest,
-      { showEffects: true },
-    ]);
-    const g = tx.effects?.gasUsed;
-    if (!g) return null;
-    return (
-      BigInt(g.computationCost ?? '0') +
-      BigInt(g.storageCost ?? '0') -
-      BigInt(g.storageRebate ?? '0')
-    );
-  } catch {
-    return null;
-  }
-}
-
-let cachedSuiPrice: { price: number; at: number } | null = null;
-async function getCurrentSuiPrice(): Promise<number> {
-  if (cachedSuiPrice && Date.now() - cachedSuiPrice.at < 5 * 60 * 1000) {
-    return cachedSuiPrice.price;
-  }
-  try {
-    const res = await fetch('https://open-api.naviprotocol.io/api/navi/pools');
-    const json = await res.json();
-    const sui = json.data.find(
-      (p: { token: { symbol: string } }) => p.token.symbol === 'SUI'
-    );
-    const price = Number(sui?.token?.price ?? 0) || 0;
-    cachedSuiPrice = { price, at: Date.now() };
-    return price;
-  } catch {
-    return 0;
-  }
-}
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Index liquidation events for a protocol.
- * Currently only NAVI has on-chain liquidation event indexing.
- * Other protocols would implement their own event parsing here.
- */
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ protocol: string }> }
@@ -74,9 +29,14 @@ export async function GET(
   }
 
   const { protocol: slug } = await params;
-
-  if (!isValidProtocol(slug)) {
+  const entry = getProtocol(slug);
+  if (!entry) {
     return NextResponse.json({ error: `Unknown protocol: ${slug}` }, { status: 404 });
+  }
+  if (!entry.adapter.fetchLiquidations) {
+    return NextResponse.json({
+      message: `Liquidation indexing not implemented for ${slug}`,
+    });
   }
 
   const db = getDb();
@@ -84,125 +44,66 @@ export async function GET(
     return NextResponse.json({ error: 'No database configured' }, { status: 503 });
   }
 
-  // Currently only NAVI event indexing is implemented
-  if (slug !== 'navi') {
-    return NextResponse.json({ message: `Liquidation indexing not yet implemented for ${slug}` });
-  }
-
   try {
-    const registry = await getNaviPoolRegistry();
-
-    let cursor: { txDigest: string; eventSeq: string } | null = null;
-    let totalIndexed = 0;
-    let skippedUnknown = 0;
-    let hasMore = true;
-
+    // Find the latest already-indexed event so the adapter can stop early.
     const latest = await db.liquidationEvent.findFirst({
       where: { protocol: slug },
       orderBy: { timestamp: 'desc' },
       select: { id: true },
     });
 
-    while (hasMore && totalIndexed < 200) {
-      const page = await queryEvents(
-        NAVI_EVENT_TYPES.LIQUIDATION,
-        cursor,
-        50,
-        'descending'
-      );
+    const events = await entry.adapter.fetchLiquidations({
+      untilEventId: latest?.id,
+      maxPages: 4,
+    });
 
-      const rows = [];
-
-      for (const evt of page.data) {
-        const eventId = `${evt.id.txDigest}:${evt.id.eventSeq}`;
-
-        if (latest && eventId === latest.id) {
-          hasMore = false;
-          break;
-        }
-
-        let p;
-        try {
-          p = parseLiquidationEvent(evt.parsedJson);
-        } catch (err) {
-          console.warn(
-            `[index-liquidations] skipping ${eventId}: ${err instanceof Error ? err.message : err}`
-          );
-          skippedUnknown++;
-          continue;
-        }
-
-        const collateralPool = registry[p.collateral_asset];
-        const debtPool = registry[p.debt_asset];
-
-        if (!collateralPool || !debtPool) {
-          console.warn(
-            `[index-liquidations] skipping ${eventId}: unknown pool id(s) collateral=${p.collateral_asset} debt=${p.debt_asset}`
-          );
-          skippedUnknown++;
-          continue;
-        }
-
-        // Amounts and prices are BOTH scaled by the asset's decimals.
-        const cScale = new BigNumber(10).pow(collateralPool.decimals);
-        const dScale = new BigNumber(10).pow(debtPool.decimals);
-
-        const collateralAmount = new BigNumber(p.collateral_amount).dividedBy(cScale).toNumber();
-        const debtAmount       = new BigNumber(p.debt_amount).dividedBy(dScale).toNumber();
-        const collateralPrice  = new BigNumber(p.collateral_price).dividedBy(cScale).toNumber();
-        const debtPrice        = new BigNumber(p.debt_price).dividedBy(dScale).toNumber();
-        const treasuryAmount   = new BigNumber(p.treasury).dividedBy(cScale).toNumber();
-
-        // Enrich with gas. Failures are non-fatal — the row still gets indexed
-        // and the backfill script can fill the gap later.
-        const gasMist = await fetchGasMist(evt.id.txDigest);
-        let gasUsd: number | null = null;
-        if (gasMist !== null) {
-          const suiPrice = await getCurrentSuiPrice();
-          gasUsd =
-            suiPrice > 0
-              ? (Number(gasMist) / Number(MIST_PER_SUI)) * suiPrice
-              : 0;
-        }
-
-        rows.push({
-          id: eventId,
-          protocol: slug,
-          txDigest: evt.id.txDigest,
-          timestamp: new Date(Number(evt.timestampMs)),
-          liquidator: p.sender,
-          borrower: p.user,
-          collateralAsset: collateralPool.symbol,
-          collateralAmount,
-          collateralPrice,
-          collateralUsd: collateralAmount * collateralPrice,
-          debtAsset: debtPool.symbol,
-          debtAmount,
-          debtPrice,
-          debtUsd: debtAmount * debtPrice,
-          treasuryAmount,
-          gasUsedMist: gasMist,
-          gasUsd,
-        });
-      }
-
-      if (rows.length > 0) {
-        await db.liquidationEvent.createMany({
-          data: rows,
-          skipDuplicates: true,
-        });
-        totalIndexed += rows.length;
-      }
-
-      cursor = page.nextCursor;
-      if (!page.hasNextPage) hasMore = false;
+    if (events.length === 0) {
+      return NextResponse.json({
+        success: true,
+        protocol: slug,
+        indexed: 0,
+        message: 'No new events',
+        timestamp: new Date().toISOString(),
+      });
     }
+
+    // Map to DB rows — extra defensive on numeric coercion since some
+    // adapters parse strings out of GraphQL responses that may carry
+    // unexpected types.
+    const num = (v: unknown) => {
+      const n = typeof v === 'number' ? v : Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
+    const rows = events.map((e) => ({
+      id: e.id,
+      protocol: slug,
+      txDigest: e.txDigest,
+      timestamp: e.timestamp,
+      liquidator: e.liquidator.slice(0, 66),
+      borrower: e.borrower.slice(0, 66),
+      collateralAsset: e.collateralAsset.slice(0, 24),
+      collateralAmount: num(e.collateralAmount),
+      collateralPrice: num(e.collateralPrice),
+      collateralUsd: num(e.collateralUsd),
+      debtAsset: e.debtAsset.slice(0, 24),
+      debtAmount: num(e.debtAmount),
+      debtPrice: num(e.debtPrice),
+      debtUsd: num(e.debtUsd),
+      treasuryAmount: num(e.treasuryAmount),
+      gasUsedMist: e.gasUsedMist ?? null,
+      gasUsd: e.gasUsd ?? null,
+    }));
+
+    const result = await db.liquidationEvent.createMany({
+      data: rows,
+      skipDuplicates: true,
+    });
 
     return NextResponse.json({
       success: true,
       protocol: slug,
-      indexed: totalIndexed,
-      skippedUnknown,
+      indexed: result.count,
+      attempted: rows.length,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

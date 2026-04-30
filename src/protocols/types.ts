@@ -69,6 +69,25 @@ export interface ProtocolConfig {
 
 // ─── Normalized Data Types ──────────────────────────────────────────────────
 
+/**
+ * Interest Rate Model parameters — written to the `RateModelParams` table by
+ * collect-pools when the adapter populates it. Each protocol expresses its
+ * IRM differently (NAVI: ray-scaled rate factors; AlphaLend: piecewise BPS;
+ * Suilend: piecewise rate config; Bucket: flat per-vault). We normalize to:
+ *   baseRate         — APR at 0% utilization
+ *   multiplier       — APR slope from 0 → kink
+ *   jumpMultiplier   — APR slope above kink
+ *   kink             — utilization (decimal 0-1) at which jump applies
+ *   reserveFactor    — protocol fee share (decimal 0-1)
+ */
+export interface IrmParams {
+  baseRate: number;
+  multiplier: number;
+  jumpMultiplier: number;
+  kink: number;
+  reserveFactor: number;
+}
+
 /** Normalized pool/market data consumed by all UI components */
 export interface NormalizedPool {
   symbol: string;
@@ -95,11 +114,19 @@ export interface NormalizedPool {
   borrowCapCeiling?: number;
   optimalUtilization?: number;
 
+  /**
+   * Optional IRM params. When present, collect-pools upserts a row into
+   * `RateModelParams` keyed by (protocol, symbol). Adapters that can't
+   * derive these cleanly should leave undefined.
+   */
+  irm?: IrmParams;
+
   price: number;
 }
 
 /** Normalized liquidation event */
 export interface NormalizedLiquidation {
+  /** Unique event ID — typically `${txDigest}:${eventSeq}`. */
   id: string;
   txDigest: string;
   timestamp: Date;
@@ -114,6 +141,9 @@ export interface NormalizedLiquidation {
   debtPrice: number;
   debtUsd: number;
   treasuryAmount?: number;
+  /** Optional gas paid by the liquidator. NAVI populates this; others may not. */
+  gasUsedMist?: bigint | null;
+  gasUsd?: number | null;
 }
 
 /** Normalized wallet/position data */
@@ -140,10 +170,17 @@ export interface ProtocolAdapter {
   fetchPool(symbol: string): Promise<NormalizedPool | null>;
 
   /**
-   * Fetch recent liquidation events.
+   * Fetch recent liquidation events. Adapters paginate internally and stop
+   * when they reach an event already indexed (`untilEventId`) or hit
+   * `maxPages` (a soft limit to keep cron runs short). Implementations
+   * should return events newest-first.
+   *
    * Only implemented by lending protocols with on-chain liquidations.
    */
-  fetchLiquidations?(cursor?: string): Promise<NormalizedLiquidation[]>;
+  fetchLiquidations?(opts?: {
+    untilEventId?: string;
+    maxPages?: number;
+  }): Promise<NormalizedLiquidation[]>;
 
   /**
    * Fetch a single wallet's position.

@@ -11,7 +11,7 @@ datasource db {
 model PoolSnapshot {
   id                    Int      @id @default(autoincrement())
   protocol              String   @default("navi") @db.VarChar(20)
-  symbol                String   @db.VarChar(10)
+  symbol                String   @db.VarChar(24)
   timestamp             DateTime @default(now())
   totalSupply           Float
   totalSupplyUsd        Float
@@ -32,7 +32,7 @@ model PoolSnapshot {
 model PoolDaily {
   id                    Int      @id @default(autoincrement())
   protocol              String   @default("navi") @db.VarChar(20)
-  symbol                String   @db.VarChar(10)
+  symbol                String   @db.VarChar(24)
   date                  DateTime @db.Date
   avgSupplyApy          Float
   avgBorrowApy          Float
@@ -54,11 +54,11 @@ model LiquidationEvent {
   timestamp         DateTime
   liquidator        String   @db.VarChar(66)
   borrower          String   @db.VarChar(66)
-  collateralAsset   String   @db.VarChar(10)
+  collateralAsset   String   @db.VarChar(24)
   collateralAmount  Float
   collateralPrice   Float
   collateralUsd     Float
-  debtAsset         String   @db.VarChar(10)
+  debtAsset         String   @db.VarChar(24)
   debtAmount        Float
   debtPrice         Float
   debtUsd           Float
@@ -99,8 +99,8 @@ model WalletPosition {
 model CollateralBorrowPair {
   id                Int      @id @default(autoincrement())
   protocol          String   @default("navi") @db.VarChar(20)
-  collateralAsset   String   @db.VarChar(10)
-  borrowAsset       String   @db.VarChar(10)
+  collateralAsset   String   @db.VarChar(24)
+  borrowAsset       String   @db.VarChar(24)
   count             Int
   totalCollateralUsd Float
   totalBorrowUsd    Float
@@ -113,7 +113,7 @@ model CollateralBorrowPair {
 model RateModelParams {
   id                Int      @id @default(autoincrement())
   protocol          String   @default("navi") @db.VarChar(20)
-  symbol            String   @db.VarChar(10)
+  symbol            String   @db.VarChar(24)
   baseRate          Float
   multiplier        Float
   jumpMultiplier    Float

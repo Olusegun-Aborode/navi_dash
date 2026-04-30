@@ -87,6 +87,15 @@ export interface NaviPoolData {
   supplyCapCeiling: number;
   borrowCapCeiling: number;
   optimalUtilization: number; // decimal
+  /** IRM params (RAY-descaled, percent units). Optional — present when
+      borrowRateFactors are populated by NAVI's open API. */
+  irm?: {
+    baseRate: number;       // %
+    multiplier: number;     // %
+    jumpMultiplier: number; // %
+    kink: number;           // decimal 0-1
+    reserveFactor: number;  // decimal 0-1
+  };
   price: number;
 }
 
@@ -173,6 +182,19 @@ export async function fetchAllPools(): Promise<NaviPoolData[]> {
         RAY
       );
 
+      // IRM params — borrowRateFactors are RAY-scaled like rates, so divide
+      // by RAY and ×100 to get percent. baseRate/multiplier/jump come from
+      // the same factor block.
+      const irm = pool.borrowRateFactors?.fields
+        ? {
+            baseRate:       toFloat(pool.borrowRateFactors.fields.base_rate ?? '0', RAY) * 100,
+            multiplier:     toFloat(pool.borrowRateFactors.fields.multiplier ?? '0', RAY) * 100,
+            jumpMultiplier: toFloat(pool.borrowRateFactors.fields.jump_rate_multiplier ?? '0', RAY) * 100,
+            kink:           optimalUtilization,
+            reserveFactor:  0, // NAVI's reserve factor isn't in this block; left at 0 for now
+          }
+        : undefined;
+
       // Utilization
       const utilization = totalSupply > 0
         ? (totalBorrows / totalSupply) * 100
@@ -199,6 +221,7 @@ export async function fetchAllPools(): Promise<NaviPoolData[]> {
         supplyCapCeiling,
         borrowCapCeiling,
         optimalUtilization,
+        irm,
         price,
       };
     });

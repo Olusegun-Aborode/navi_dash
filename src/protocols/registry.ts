@@ -10,14 +10,23 @@
 import type { ProtocolConfig, ProtocolEntry } from './types';
 import naviConfig from './navi/config';
 import naviAdapter from './navi/adapter';
+import suilendConfig from './suilend/config';
+import suilendAdapter from './suilend/adapter';
+import scallopConfig from './scallop/config';
+import scallopAdapter from './scallop/adapter';
+import alphalendConfig from './alphalend/config';
+import alphalendAdapter from './alphalend/adapter';
+import bucketConfig from './bucket/config';
+import bucketAdapter from './bucket/adapter';
 
 // ─── Registry ───────────────────────────────────────────────────────────────
 
 const PROTOCOLS: Record<string, ProtocolEntry> = {
-  navi: { config: naviConfig, adapter: naviAdapter },
-  // Future protocols:
-  // suilend: { config: suilendConfig, adapter: suilendAdapter },
-  // cetus:   { config: cetusConfig,   adapter: cetusAdapter },
+  navi:      { config: naviConfig,      adapter: naviAdapter },
+  suilend:   { config: suilendConfig,   adapter: suilendAdapter },
+  scallop:   { config: scallopConfig,   adapter: scallopAdapter },
+  alphalend: { config: alphalendConfig, adapter: alphalendAdapter },
+  bucket:    { config: bucketConfig,    adapter: bucketAdapter },
 };
 
 export default PROTOCOLS;

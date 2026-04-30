@@ -72,3 +72,33 @@ export async function fetchPrice(symbol: string): Promise<number | null> {
   const prices = await fetchPrices();
   return prices[symbol] ?? null;
 }
+
+/**
+ * Fetch USD prices for Sui assets keyed by full coinType. Uses DefiLlama's
+ * `sui:<coinType>` price endpoint, which covers anything indexed on the Sui
+ * network — including LSTs that aren't on CoinGecko by symbol slug.
+ *
+ * Returns a map of `coinType → priceUsd`. Missing tokens are simply absent
+ * from the returned object.
+ */
+export async function fetchSuiCoinPrices(
+  coinTypes: string[],
+): Promise<Record<string, number>> {
+  if (coinTypes.length === 0) return {};
+  try {
+    const ids = coinTypes.map((c) => `sui:${c}`).join(',');
+    const res = await fetch(`https://coins.llama.fi/prices/current/${ids}`, {
+      next: { revalidate: 300 },
+    });
+    if (!res.ok) return {};
+    const data = await res.json();
+    const out: Record<string, number> = {};
+    for (const c of coinTypes) {
+      const coin = data.coins?.[`sui:${c}`];
+      if (coin?.price) out[c] = coin.price;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
